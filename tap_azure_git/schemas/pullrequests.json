@@ -5,6 +5,13 @@
     "_sdc_repository": {
       "type": ["string"]
     },
+    "artifactId": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "description": "A string which uniquely identifies this pull request. To generate an artifact ID for a pull request, use this template: vstfs:///Git/PullRequestId/{projectId}/{repositoryId}/{pullRequestId}"
+    },
     "autoCompleteSetBy": {
       "$ref": "IdentityRef",
       "description": "If set, auto-complete is enabled for this pull request and this is the identity that enabled it."
