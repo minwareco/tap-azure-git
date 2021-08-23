@@ -159,6 +159,7 @@ def rate_throttling(response):
 def authed_get(source, url, headers={}):
     with metrics.http_request_timer(source) as timer:
         session.headers.update(headers)
+        logger.info("requesting {}".format(url))
         resp = session.request(method='get', url=url)
         if resp.status_code != 200:
             raise_for_error(resp, source)
@@ -166,17 +167,20 @@ def authed_get(source, url, headers={}):
         rate_throttling(resp)
         return resp
 
+PAGE_SIZE = 10
 def authed_get_all_pages(source, url, headers={}):
+    offset = 0
+    baseurl = url + '&searchCriteria.$top={}'.format(PAGE_SIZE)
     while True:
-        r = authed_get(source, url, headers)
+        cururl = baseurl + '&searchCriteria.$skip={}'.format(offset)
+        r = authed_get(source, cururl, headers)
         yield r
-        break
-        # TODO: look for a link header, and will have to update the URL parameters accordingly
+        # Look for a link header, and will have to update the URL parameters accordingly
         # link: <https://dev.azure.com/_apis/git/repositories/scheduled/commits>;rel="next"
-        #if 'next' in r.links:
-        #    url = r.links['next']['url']
-        #else:
-        #    break
+        if 'link' in r.headers and 'rel="next"' in r.headers['link']:
+            offset += PAGE_SIZE
+        else:
+            break
 
 def get_abs_path(path):
     return os.path.join(os.path.dirname(os.path.realpath(__file__)), path)
@@ -298,10 +302,6 @@ def get_all_commits(schema, org, repo_path, state, mdata, start_date):
     Note: the change array looks like it is only included if the query has one result. So, it will
     nee to be fetched with commits/changes in a separate request in most cases.
     '''
-    # The actual limit doesn't seem to be documented, so use 100
-    per_page = 100
-    page = 1
-
     reposplit = repo_path.split('/')
     project = reposplit[0]
     project_repo = reposplit[1]
@@ -317,8 +317,8 @@ def get_all_commits(schema, org, repo_path, state, mdata, start_date):
         for response in authed_get_all_pages(
                 'commits',
                 "https://dev.azure.com/{}/{}/_apis/git/repositories/{}/commits?" \
-                "searchCriteria.$top={}&searchCriteria.$skip={}&api-version={}" \
-                .format(org, project, project_repo, per_page, (page - 1) * per_page, API_VESION)
+                "api-version={}" \
+                .format(org, project, project_repo, API_VESION)
         ):
             commits = response.json()
             logger.info(commits)
