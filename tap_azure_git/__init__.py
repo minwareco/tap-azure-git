@@ -158,7 +158,7 @@ def authed_get(source, url, headers={}):
     with metrics.http_request_timer(source) as timer:
         session.headers.update(headers)
         # Uncomment for debugging
-        logger.info("requesting {}".format(url))
+        #logger.info("requesting {}".format(url))
         resp = session.request(method='get', url=url)
         if resp.status_code != 200:
             raise_for_error(resp, source)
@@ -317,7 +317,6 @@ def get_all_commits(schema, org, repo_path, state, mdata, start_date):
     bookmark = get_bookmark(state, repo_path, "commits", "since", start_date)
     if not bookmark:
         bookmark = '1970-01-01'
-    bookmark = '1970-01-01'
 
     with metrics.record_counter('commits') as counter:
         extraction_time = singer.utils.now()
