@@ -126,8 +126,6 @@ def raise_for_error(resp, source):
 
     if error_code == 404:
         details = ERROR_CODE_EXCEPTION_MAPPING.get(error_code).get("message")
-        if source == "teams":
-            details += ' or it is a personal account repository'
         message = "HTTP-error-code: 404, Error: {}. Please refer \'{}\' for more details.".format(details, response_json.get("documentation_url"))
     else:
         message = "HTTP-error-code: {}, Error: {}".format(
@@ -169,16 +167,25 @@ def authed_get(source, url, headers={}):
         return resp
 
 PAGE_SIZE = 100
-def authed_get_all_pages(source, url, headers={}):
+def authed_get_all_pages(source, url, page_param_name='', skip_param_name='', headers={}):
     offset = 0
-    baseurl = url + '&searchCriteria.$top={}'.format(PAGE_SIZE)
+    if page_param_name:
+        baseurl = url + '&{}={}'.format(page_param_name, PAGE_SIZE)
+    else:
+        baseurl = url
     while True:
-        cururl = baseurl + '&searchCriteria.$skip={}'.format(offset)
+        if page_param_name:
+            cururl = baseurl + '&{}={}'.format(skip_param_name, offset)
+        else:
+            cururl = baseurl
         r = authed_get(source, cururl, headers)
         yield r
         # Look for a link header, and will have to update the URL parameters accordingly
         # link: <https://dev.azure.com/_apis/git/repositories/scheduled/commits>;rel="next"
-        if 'link' in r.headers and 'rel="next"' in r.headers['link']:
+        # Except for the changes endpoint, the server sends an empty link header, which just seems
+        # buggy, but we have to handle it.
+        if page_param_name and 'link' in r.headers and \
+                ('rel="next"' in r.headers['link'] or '' == r.headers['link']):
             offset += PAGE_SIZE
         else:
             break
@@ -317,25 +324,40 @@ def get_all_commits(schema, org, repo_path, state, mdata, start_date):
                 'commits',
                 "https://dev.azure.com/{}/{}/_apis/git/repositories/{}/commits?" \
                 "api-version={}&searchCriteria.fromDate={}" \
-                .format(org, project, project_repo, API_VESION, bookmark)
+                .format(org, project, project_repo, API_VESION, bookmark),
+                'searchCriteria.$top',
+                'searchCriteria.$skip'
         ):
             commits = response.json()
-            logger.info(commits)
             for commit in commits['value']:
-                # TODO: Augment each commit with file-level change data by hitting changes endpoint.
-                '''
+                # Fetch the individual commit to obtain parents. This also provides pushes and other
+                # properties, but we don't care about those for now.
                 for commit_detail in authed_get_all_pages(
-                    'commits',
-                    'https://api.github.com/repos/{}/commits/{}'.format(repo_path, commit['sha'])
+                    'commits/changes',
+                    "https://dev.azure.com/{}/{}/_apis/git/repositories/{}/commits/{}?" \
+                    "api-version={}" \
+                    .format(org, project, project_repo, commit['commitId'], API_VESION)
                 ):
-
                     detail_json = commit_detail.json()
-                    commit['files'] = detail_json['files']
-                    commit['stats'] = detail_json['stats']
-                    # TODO: I don't think this response can have more than one item, but
-                    # it'd be good to throw an exception if one is found.
-                    break
-                '''
+                    commit['parents'] = detail_json['parents']
+
+                # TODO: include the first 100 changes in the request above and don't make the
+                # additional changes request unless it's necessary. This will speed things up and
+                # reduce the number of requests.
+
+                # Augment each commit with file-level change data by querying the changes endpoint.
+                commit['changes'] = []
+                for commit_change_detail in authed_get_all_pages(
+                    'commits/changes',
+                    "https://dev.azure.com/{}/{}/_apis/git/repositories/{}/commits/{}/changes?" \
+                    "api-version={}" \
+                    .format(org, project, project_repo, commit['commitId'], API_VESION),
+                    'top',
+                    'skip'
+                ):
+                    detail_json = commit_change_detail.json()
+                    commit['changes'].extend(detail_json['changes'])
+
                 commit['_sdc_repository'] = repo_path
                 with singer.Transformer() as transformer:
                     rec = transformer.transform(commit, schema, metadata=metadata.to_map(mdata))

@@ -124,12 +124,6 @@
             "number"
           ]
         },
-        "Branch": {
-          "type": [
-            "null",
-            "number"
-          ]
-        },
         "Delete": {
           "type": [
             "null",
@@ -142,60 +136,27 @@
             "number"
           ]
         },
-        "Encoding": {
-          "type": [
-            "null",
-            "number"
-          ]
-        },
-        "Lock": {
-          "type": [
-            "null",
-            "number"
-          ]
-        },
-        "Merge": {
-          "type": [
-            "null",
-            "number"
-          ]
-        },
-        "Property": {
-          "type": [
-            "null",
-            "number"
-          ]
-        },
         "Rename": {
           "type": [
             "null",
             "number"
           ]
         },
-        "Rollback": {
+        "Delete, SourceRename": {
           "type": [
             "null",
             "number"
           ]
         },
-        "SourceRename": {
-          "type": [
-            "null",
-            "number"
-          ]
-        },
-        "TargetRename": {
-          "type": [
-            "null",
-            "number"
-          ]
-        },
-        "Undelete": {
+        "Edit, Rename": {
           "type": [
             "null",
             "number"
           ]
         }
+      },
+      "patternProperties": {
+        ".+": {}
       }
     },
     "GitPushRef": {
@@ -266,13 +227,6 @@
     "GitChange": {
       "type": ["null", "object"],
       "properties": {
-        "changeId": {
-          "type": [
-            "null",
-            "number"
-          ],
-          "description": "ID of the change within the group of changes."
-        },
         "changeType": {
           "type": [
             "null",
@@ -280,33 +234,59 @@
           ],
           "description": "The type of change that was made to the item."
         },
-        "item": {
-          "type": [
-            "null",
-            "string"
-          ],
-          "description": "Current version."
-        },
-        "originalPath": {
-          "type": [
-            "null",
-            "string"
-          ],
-          "description": "Original path of item if different from current path."
-        },
         "sourceServerItem": {
           "type": [
             "null",
             "string"
           ],
-          "description": "Path of the item on the server."
+          "description": "The original path to the item if it has changed."
         },
-        "url": {
-          "type": [
-            "null",
-            "string"
-          ],
-          "description": "URL to retrieve the item."
+        "item": {
+          "type": ["null", "object"],
+          "properties": {
+            "objectId": {
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            "originalObjectId": {
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            "gitObjectType": {
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            "path": {
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            "isFolder": {
+              "type": [
+                "null",
+                "boolean"
+              ]
+            },
+            "commitId": {
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            "url": {
+              "type": [
+                "null",
+                "string"
+              ]
+            }
+          }
         }
       }
     },
