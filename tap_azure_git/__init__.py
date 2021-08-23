@@ -133,7 +133,7 @@ def raise_for_error(resp, source):
         message = "HTTP-error-code: {}, Error: {}".format(
             error_code, ERROR_CODE_EXCEPTION_MAPPING.get(error_code, {}).get("message", "Unknown Error") if response_json == {} else response_json)
 
-    exc = ERROR_CODE_EXCEPTION_MAPPING.get(error_code, {}).get("raise_exception", GithubException)
+    exc = ERROR_CODE_EXCEPTION_MAPPING.get(error_code, {}).get("raise_exception", AzureException)
     raise exc(message) from None
 
 def calculate_seconds(epoch):
@@ -274,9 +274,8 @@ def verify_access_for_repo(config):
         project_repo = reposplit[1]
 
         # https://dev.azure.com/${ORG}/${PROJECTNAME}/_apis/git/repositories/${REPONAME}/commits?searchCriteria.\$top=${PAGESIZE}\&searchCriteria.\$skip=${SKIP}\&api-version=${APIVERSION}
-        org, project, repo, top, skip, version
-        url_for_repo = "https://dev.azure.com/{}/{}/_apis/git/repositories/${}/commits?" \
-            "searchCriteria.$top={}&searchCriteria.$skip={}\&api-version={}" \
+        url_for_repo = "https://dev.azure.com/{}/{}/_apis/git/repositories/{}/commits?" \
+            "searchCriteria.$top={}&searchCriteria.$skip={}&api-version={}" \
             .format(org, project, project_repo, per_page, page - 1, API_VESION)
 
         # Verifying for Repo access
