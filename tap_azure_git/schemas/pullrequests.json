@@ -1,0 +1,484 @@
+{
+  "type": ["null", "object"],
+  "additionalProperties": false,
+  "properties": {
+    "_sdc_repository": {
+      "type": ["string"]
+    },
+    "autoCompleteSetBy": {
+      "$ref": "IdentityRef",
+      "description": "If set, auto-complete is enabled for this pull request and this is the identity that enabled it."
+    },
+    "closedBy": {
+      "$ref": "IdentityRef",
+      "description": "The user who closed the pull request."
+    },
+    "closedDate": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "description": "The date when the pull request was closed (completed, abandoned, or merged externally)."
+    },
+    "codeReviewId": {
+      "type": [
+        "null",
+        "number"
+      ],
+      "description": "The code review ID of the pull request. Used internally."
+    },
+    "commits": {
+      "type": [
+        "null",
+        "array"
+      ],
+      "items": {
+        "$ref": "GitCommitRefShallow"
+      },
+      "description": "The commits contained in the pull request."
+    },
+    "completionOptions": {
+      "$ref": "GitPullRequestCompletionOptions",
+      "description": ""
+    },
+    "completionQueueTime": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "description": "The most recent date at which the pull request entered the queue to be completed. Used internally."
+    },
+    "createdBy": {
+      "$ref": "IdentityRef",
+      "description": "The identity of the user who created the pull request."
+    },
+    "creationDate": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "description": "The date when the pull request was created."
+    },
+    "description": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "description": "The description of the pull request."
+    },
+    "forkSource": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "description": "If this is a PR from a fork this will contain information about its source (JSON encoded)."
+    },
+    "isDraft": {
+      "type": [
+        "null",
+        "boolean"
+      ],
+      "description": "Draft / WIP pull request."
+    },
+    "labels": {
+      "type": [
+        "null",
+        "array"
+      ],
+      "items": {
+        "$ref": "WebApiTagDefinition"
+      },
+      "description": "The labels associated with the pull request."
+    },
+    "lastMergeCommit": {
+      "$ref": "GitCommitRefShallow",
+      "description": "The commit of the most recent pull request merge. If empty, the most recent merge is in progress or was unsuccessful."
+    },
+    "lastMergeSourceCommit": {
+      "$ref": "GitCommitRefShallow",
+      "description": "The commit at the head of the source branch at the time of the last pull request merge."
+    },
+    "lastMergeTargetCommit": {
+      "$ref": "GitCommitRefShallow",
+      "description": "The commit at the head of the target branch at the time of the last pull request merge."
+    },
+    "mergeFailureMessage": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "description": "If set, pull request merge failed for this reason."
+    },
+    "mergeFailureType": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "description": "The type of failure (if any) of the pull request merge."
+    },
+    "mergeId": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "description": "The ID of the job used to run the pull request merge. Used internally."
+    },
+    "mergeOptions": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "description": "Options used when the pull request merge runs. These are separate from completion options since completion happens only once and a new merge will run every time the source branch of the pull request changes (JSON encoded)."
+    },
+    "mergeStatus": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "description": "The current status of the pull request merge."
+    },
+    "pullRequestId": {
+      "type": [
+        "null",
+        "number"
+      ],
+      "description": "The ID of the pull request."
+    },
+    "remoteUrl": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "description": "Used internally."
+    },
+    "repository": {
+      "$ref": "GitRepositoryShallow",
+      "description": "The repository containing the target branch of the pull request."
+    },
+    "reviewers": {
+      "type": [
+        "null",
+        "array"
+      ],
+      "items": {
+        "$ref": "IdentityRefWithVote"
+      },
+      "description": "A list of reviewers on the pull request along with the state of their votes."
+    },
+    "sourceRefName": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "description": "The name of the source branch of the pull request."
+    },
+    "status": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "description": "The status of the pull request."
+    },
+    "supportsIterations": {
+      "type": [
+        "null",
+        "boolean"
+      ],
+      "description": "If true, this pull request supports multiple iterations. Iteration support means individual pushes to the source branch of the pull request can be reviewed and comments left in one iteration will be tracked across future iterations."
+    },
+    "targetRefName": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "description": "The name of the target branch of the pull request."
+    },
+    "title": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "description": "The title of the pull request."
+    },
+    "url": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "description": "Used internally."
+    },
+    "workItemRefs": {
+      "type": [
+        "null",
+        "array"
+      ],
+      "items": {
+        "$ref": "ResourceRef"
+      },
+      "description": "Any work item references associated with this pull request."
+    }
+  },
+  "definitions": {
+    "IdentifyRef": {
+      "type": ["null", "object"],
+      "properties": {
+        "id": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "descriptor": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "The descriptor is the primary way to reference the graph subject while the system is running. This field will uniquely identify the same graph subject across both Accounts and Organizations."
+        },
+        "displayName": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "This is the non-unique display name of the graph subject. To change this field, you must alter its value in the source provider."
+        },
+        "uniqueName": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "This is the non-unique display name of the graph subject. To change this field, you must alter its value in the source provider."
+        },
+        "isDeletedInOrigin": {
+          "type": [
+            "null",
+            "boolean"
+          ]
+        },
+        "url": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "This url is the full route to the source resource of this graph subject."
+        }
+      }
+    },
+    "IdentityRefWithVote": {
+      "type": ["null", "object"],
+      "properties": {
+        "id": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "descriptor": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "The descriptor is the primary way to reference the graph subject while the system is running. This field will uniquely identify the same graph subject across both Accounts and Organizations."
+        },
+        "displayName": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "This is the non-unique display name of the graph subject. To change this field, you must alter its value in the source provider."
+        },
+        "uniqueName": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "This is the non-unique display name of the graph subject. To change this field, you must alter its value in the source provider."
+        },
+        "isDeletedInOrigin": {
+          "type": [
+            "null",
+            "boolean"
+          ]
+        },
+        "url": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "This url is the full route to the source resource of this graph subject."
+        },
+        "hasDeclined": {
+          "type": [
+            "null",
+            "boolean"
+          ],
+          "description": "Indicates if this reviewer has declined to review this pull request."
+        },
+        "isFlagged": {
+          "type": [
+            "null",
+            "boolean"
+          ],
+          "description": "Indicates if this reviewer is flagged for attention on this pull request."
+        },
+        "isRequired": {
+          "type": [
+            "null",
+            "boolean"
+          ],
+          "description": "Indicates if this is a required reviewer for this pull request. Branches can have policies that require particular reviewers are required for pull requests."
+        },
+        "reviewerUrl": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "URL to retrieve information about this identity"
+        },
+        "vote": {
+          "type": [
+            "null",
+            "number"
+          ],
+          "description": "Vote on a pull request: 10 - approved, 5 - approved with suggestions, 0 - no vote, -5 - waiting for author, -10 - rejected"
+        },
+        "votedFor": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Groups or teams that that this reviewer contributed to. Groups and teams can be reviewers on pull requests but can not vote directly. When a member of the group or team votes, that vote is rolled up into the group or team vote. VotedFor is a list of such votes (JSON encoded)."
+        }
+      }
+    },
+    "WebApiTagDefinition": {
+      "type": ["null", "object"],
+      "properties": {
+        "id": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "name": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "active": {
+          "type": [
+            "null",
+            "boolean"
+          ]
+        }
+      }
+    },
+    "GitPullRequestCompletionOptions": {
+      "type": ["null", "object"],
+      "properties": {
+        "autoCompleteIgnoreConfigIds": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "List of any policy configuration Id's which auto-complete should not wait for. Only applies to optional policies (isBlocking == false). Auto-complete always waits for required policies (isBlocking == true). (JSON encoded integer array)"
+        },
+        "bypassPolicy": {
+          "type": [
+            "null",
+            "boolean"
+          ],
+          "description": "If true, policies will be explicitly bypassed while the pull request is completed."
+        },
+        "bypassReason": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "If policies are bypassed, this reason is stored as to why bypass was used."
+        },
+        "deleteSourceBranch": {
+          "type": [
+            "null",
+            "boolean"
+          ],
+          "description": "If true, the source branch of the pull request will be deleted after completion."
+        },
+        "mergeCommitMessage": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "If set, this will be used as the commit message of the merge commit."
+        },
+        "mergeStrategy": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Specify the strategy used to merge the pull request during completion."
+        },
+        "transitionWorkItems": {
+          "type": [
+            "null",
+            "boolean"
+          ],
+          "description": "If true, we will attempt to transition any work items linked to the pull request into the next logical state (i.e. Active -> Resolved)"
+        },
+        "triggeredByAutoComplete": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "If true, the current completion attempt was triggered via auto-complete. Used internally."
+        }
+      }
+    },
+    "GitCommitRefShallow": {
+      "type": ["null", "object"],
+      "properties": {
+        "commitId": {
+          "type": [
+            "null",
+            "string"
+          ]
+        }
+      }
+    },
+    "GitRepositoryShallow": {
+      "type": ["null", "object"],
+      "properties": {
+        "name": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "id": {
+          "type": [
+            "null",
+            "string"
+          ]
+        }
+      }
+    },
+    "ResourceRef": {
+      "type": ["null", "object"],
+      "properties": {
+        "url": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "id": {
+          "type": [
+            "null",
+            "string"
+          ]
+        }
+      }
+    }
+  }
+}

@@ -209,6 +209,13 @@
           ],
           "description": "This is the non-unique display name of the graph subject. To change this field, you must alter its value in the source provider."
         },
+        "uniqueName": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Deprecated unique user name"
+        },
         "isDeletedInOrigin": {
           "type": [
             "null",
