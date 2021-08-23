@@ -13,7 +13,7 @@ from singer import metadata
 session = requests.Session()
 logger = singer.get_logger()
 
-REQUIRED_CONFIG_KEYS = ['start_date', 'access_token', 'org', 'repository']
+REQUIRED_CONFIG_KEYS = ['start_date', 'user_name', 'access_token', 'org', 'repository']
 
 KEY_PROPERTIES = {
     'commits': ['commitId'], # This is the SHA
@@ -261,8 +261,6 @@ def verify_repo_access(url_for_repo, repo):
         raise NotFoundException(message) from None
 
 def verify_access_for_repo(config):
-    access_token = config['access_token']
-    session.headers.update({'authorization': 'token ' + access_token, 'per_page': '1', 'page': '1'})
     org = config['org']
     per_page = 1
     page = 1
@@ -387,9 +385,6 @@ def do_sync(config, state, catalog):
       }
     }
     '''
-    access_token = config['access_token']
-    session.headers.update({'authorization': 'token ' + access_token})
-
     start_date = config['start_date'] if 'start_date' in config else None
     # get selected streams, make sure stream dependencies are met
     selected_stream_ids = get_selected_streams(catalog)
@@ -443,6 +438,11 @@ def do_sync(config, state, catalog):
 @singer.utils.handle_top_exception(logger)
 def main():
     args = singer.utils.parse_args(REQUIRED_CONFIG_KEYS)
+
+    # Initialize basic auth
+    user_name = args.config['user_name']
+    access_token = args.config['access_token']
+    session.auth = (user_name, access_token)
 
     if args.discover:
         do_discover(args.config)
