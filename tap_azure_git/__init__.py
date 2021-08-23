@@ -159,7 +159,8 @@ def rate_throttling(response):
 def authed_get(source, url, headers={}):
     with metrics.http_request_timer(source) as timer:
         session.headers.update(headers)
-        logger.info("requesting {}".format(url))
+        # Uncomment for debugging
+        #logger.info("requesting {}".format(url))
         resp = session.request(method='get', url=url)
         if resp.status_code != 200:
             raise_for_error(resp, source)
