@@ -167,7 +167,7 @@ def authed_get(source, url, headers={}):
         rate_throttling(resp)
         return resp
 
-PAGE_SIZE = 10
+PAGE_SIZE = 100
 def authed_get_all_pages(source, url, headers={}):
     offset = 0
     baseurl = url + '&searchCriteria.$top={}'.format(PAGE_SIZE)
@@ -307,22 +307,19 @@ def get_all_commits(schema, org, repo_path, state, mdata, start_date):
     project_repo = reposplit[1]
 
     bookmark = get_bookmark(state, repo_path, "commits", "since", start_date)
-    # TODO: set searchCriteria.fromDate
-    #if bookmark:
-    #    query_string = '?since={}'.format(bookmark)
-    #else:
-    #    query_string = ''
+    if not bookmark:
+        bookmark = '1970-01-01'
 
     with metrics.record_counter('commits') as counter:
+        extraction_time = singer.utils.now()
         for response in authed_get_all_pages(
                 'commits',
                 "https://dev.azure.com/{}/{}/_apis/git/repositories/{}/commits?" \
-                "api-version={}" \
-                .format(org, project, project_repo, API_VESION)
+                "api-version={}&searchCriteria.fromDate={}" \
+                .format(org, project, project_repo, API_VESION, bookmark)
         ):
             commits = response.json()
             logger.info(commits)
-            extraction_time = singer.utils.now()
             for commit in commits['value']:
                 # TODO: Augment each commit with file-level change data by hitting changes endpoint.
                 '''
