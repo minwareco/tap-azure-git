@@ -188,7 +188,11 @@ def load_schemas():
         path = get_abs_path('schemas') + '/' + filename
         file_raw = filename.replace('.json', '')
         with open(path) as file:
-            schemas[file_raw] = json.load(file)
+            schema = json.load(file)
+            refs = schema.pop("definitions", {})
+            if refs:
+                singer.resolve_schema_references(schema, refs)
+            schemas[file_raw] = schema
 
     return schemas
 
@@ -287,30 +291,41 @@ def do_discover(config):
     # dump catalog
     print(json.dumps(catalog, indent=2))
 
-def get_all_commits(schema, repo_path,  state, mdata, start_date):
+def get_all_commits(schema, org, repo_path, state, mdata, start_date):
     '''
     https://docs.microsoft.com/en-us/rest/api/azure/devops/git/commits/get-commits?view=azure-devops-rest-6.0#gitcommitref
 
     Note: the change array looks like it is only included if the query has one result. So, it will
     nee to be fetched with commits/changes in a separate request in most cases.
     '''
+    # The actual limit doesn't seem to be documented, so use 100
+    per_page = 100
+    page = 1
+
+    reposplit = repo_path.split('/')
+    project = reposplit[0]
+    project_repo = reposplit[1]
+
     bookmark = get_bookmark(state, repo_path, "commits", "since", start_date)
-    if bookmark:
-        query_string = '?since={}'.format(bookmark)
-    else:
-        query_string = ''
+    # TODO: set searchCriteria.fromDate
+    #if bookmark:
+    #    query_string = '?since={}'.format(bookmark)
+    #else:
+    #    query_string = ''
 
     with metrics.record_counter('commits') as counter:
         for response in authed_get_all_pages(
                 'commits',
-                'https://api.github.com/repos/{}/commits{}'.format(repo_path, query_string)
+                "https://dev.azure.com/{}/{}/_apis/git/repositories/{}/commits?" \
+                "searchCriteria.$top={}&searchCriteria.$skip={}&api-version={}" \
+                .format(org, project, project_repo, per_page, (page - 1) * per_page, API_VESION)
         ):
             commits = response.json()
+            logger.info(commits)
             extraction_time = singer.utils.now()
-            for commit in commits:
-                # Augment each commit with file-level diff data by hitting the commits endpoint with
-                # the individual commit hash
-                # TODO: fetch multiple pages of changed files if the changed file count exceeds 300.
+            for commit in commits['value']:
+                # TODO: Augment each commit with file-level change data by hitting changes endpoint.
+                '''
                 for commit_detail in authed_get_all_pages(
                     'commits',
                     'https://api.github.com/repos/{}/commits/{}'.format(repo_path, commit['sha'])
@@ -322,7 +337,7 @@ def get_all_commits(schema, repo_path,  state, mdata, start_date):
                     # TODO: I don't think this response can have more than one item, but
                     # it'd be good to throw an exception if one is found.
                     break
-
+                '''
                 commit['_sdc_repository'] = repo_path
                 with singer.Transformer() as transformer:
                     rec = transformer.transform(commit, schema, metadata=metadata.to_map(mdata))
@@ -389,6 +404,8 @@ def do_sync(config, state, catalog):
     selected_stream_ids = get_selected_streams(catalog)
     validate_dependencies(selected_stream_ids)
 
+    org = config['org']
+
     repositories = list(filter(None, config['repository'].split(' ')))
 
     singer.write_state(state)
@@ -415,7 +432,7 @@ def do_sync(config, state, catalog):
 
                 # sync stream
                 if not sub_stream_ids:
-                    state = sync_func(stream_schema, repo, state, mdata, start_date)
+                    state = sync_func(stream_schema, org, repo, state, mdata, start_date)
 
                 # handle streams with sub streams
                 else:
@@ -429,8 +446,8 @@ def do_sync(config, state, catalog):
                             singer.write_schema(sub_stream_id, sub_stream['schema'],
                                                 sub_stream['key_properties'])
 
-                    # sync stream and it's sub streams
-                    state = sync_func(stream_schemas, repo, state, mdata, start_date)
+                    # sync stream and its sub streams
+                    state = sync_func(stream_schemas, org, repo, state, mdata, start_date)
 
                 singer.write_state(state)
 
