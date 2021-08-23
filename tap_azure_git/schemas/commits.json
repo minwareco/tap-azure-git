@@ -5,216 +5,328 @@
     "_sdc_repository": {
       "type": ["string"]
     },
-    "sha": {
-      "type": ["null", "string"],
-      "description": "The git commit hash"
+    "author": {
+      "$ref": "GitUserDate",
+      "description": "Author of the commit."
     },
-    "url": {
-      "type": ["null", "string"]
+    "changeCounts": {
+      "$ref": "ChangeCountDictionary",
+      "description": "Counts of the types of changes (edits, deletes, etc.) included with the commit."
     },
-    "parents": {
-      "type": ["null", "array"],
-      "items": {
-        "type": ["null", "object"],
-        "additionalProperties": false,
-        "properties": {
-          "sha": {
-            "type": ["null", "string"],
-            "description": "The git hash of the parent commit"
-          },
-          "url": {
-            "type": ["null", "string"],
-            "description": "The URL to the parent commit"
-          },
-          "html_url": {
-            "type": ["null", "string"],
-            "description": "The HTML URL to the parent commit"
-          }
-        }
-      }
-    },
-    "stats": {
-      "type": ["null", "object"],
-      "additionalProperties": false,
-      "properties": {
-        "total": {
-          "type": [
-            "null",
-            "number"
-          ]
-        },
-        "additions": {
-          "type": [
-            "null",
-            "number"
-          ]
-        },
-        "deletions": {
-          "type": [
-            "null",
-            "number"
-          ]
-        }
-      }
-    },
-    "files": {
+    "changes": {
       "type": [
         "null",
         "array"
       ],
       "items": {
-        "type": [
-          "null",
-          "object"
-        ],
-        "properties": {
-          "sha": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "filename": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "additions": {
-            "type": [
-              "null",
-              "number"
-            ]
-          },
-          "deletions": {
-            "type": [
-              "null",
-              "number"
-            ]
-          },
-          "changes": {
-            "type": [
-              "null",
-              "number"
-            ]
-          },
-          "status": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "raw_url": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "blob_url": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "contents_url": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "patch": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        }
-      }
+        "$ref": "GitChange"
+      },
+      "description": "An enumeration of the changes included with the commit."
     },
-    "html_url": {
+    "comment": {
       "type": ["null", "string"],
-      "description": "The HTML URL to the commit"
+      "description": "Comment or message of the commit."
     },
-    "comments_url": {
+    "commentTruncated": {
+      "type": ["null", "boolean"],
+      "description": "Indicates if the comment is truncated from the full Git commit comment message."
+    },
+    "commitId": {
       "type": ["null", "string"],
-      "description": "The URL to the commit's comments page"
+      "description": "ID (SHA-1) of the commit."
     },
-    "commit": {
+    "committer": {
+      "$ref": "GitUserDate",
+      "description": "Committer of the commit."
+    },
+    "parents": {
+      "type": ["null", "array"],
+      "items": {
+        "type": ["null", "string"]
+      },
+      "description": "An enumeration of the parent commit IDs for this commit."
+    },
+    "push": {
+      "$ref": "GitPushRef",
+      "description": "The push associated with this commit."
+    },
+    "remoteUrl": {
+      "type": ["null", "string"],
+      "description": "Remote URL path to the commit."
+    },
+    "statuses": {
+      "type": [
+        "null",
+        "array"
+      ],
+      "items": {
+        "$ref": "GitStatus"
+      },
+      "description": "A list of status metadata from services and extensions that may associate additional information to the commit."
+    },
+    "url": {
+      "type": ["null", "string"],
+      "description": "REST URL for this resource."
+    },
+    "workItems": {
+      "type": [
+        "null",
+        "array"
+      ],
+      "items": {
+        "$ref": "ResourceRef"
+      },
+      "description": "A list of workitems associated with this commit."
+    }
+  },
+  "definitions": {
+    "GitUserDate": {
       "type": ["null", "object"],
       "additionalProperties": false,
       "properties": {
-        "url": {
-          "type": ["null", "string"],
-          "description": "The URL to the commit"
+        "date": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Date of the Git operation."
         },
-        "tree": {
-          "type": ["null", "object"],
-          "additionalProperties": false,
-          "properties": {
-            "sha": {
-              "type": ["null", "string"]
-            },
-            "url": {
-              "type": ["null", "string"]
-            }
-          }
+        "email": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Email address of the user performing the Git operation."
         },
-        "author": {
-          "type": ["null", "object"],
-          "additionalProperties": false,
-          "properties": {
-            "date": {
-              "type": ["null", "string"],
-              "format": "date-time",
-              "description": "The date the author committed the change"
-            },
-            "name": {
-              "type": ["null", "string"],
-              "description": "The author's name"
-            },
-            "email": {
-              "type": ["null", "string"],
-              "description": "The author's email"
-            },
-            "login": {
-              "type": ["null", "string"],
-              "description": "The author's login"
-            }
-          }
+        "imageUrl": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Url for the user's avatar."
         },
-        "message": {
-          "type": ["null", "string"],
-          "description": "The commit message"
-        },
-        "committer": {
-          "type": ["null", "object"],
-          "additionalProperties": false,
-          "properties": {
-            "date": {
-              "type": ["null", "string"],
-              "format": "date-time",
-              "description": "The date the committer committed the change"
-            },
-            "name": {
-              "type": ["null", "string"],
-              "description": "The committer's name"
-            },
-            "email": {
-              "type": ["null", "string"],
-              "description": "The committer's email"
-            },
-            "login": {
-              "type": ["null", "string"],
-              "description": "The committer's login"
-            }
-          }
-        },
-        "comment_count": {
-          "type": ["null", "integer"],
-          "description": "The number of comments on the commit"
+        "name": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Name of the user performing the Git operation."
         }
       }
+    },
+    "ChangeCountDictionary": {
+      "type": ["null", "object"],
+      "additionalProperties": false,
+      "properties": {
+        "Add": {
+          "type": [
+            "null",
+            "number"
+          ]
+        },
+        "Branch": {
+          "type": [
+            "null",
+            "number"
+          ]
+        },
+        "Delete": {
+          "type": [
+            "null",
+            "number"
+          ]
+        },
+        "Edit": {
+          "type": [
+            "null",
+            "number"
+          ]
+        },
+        "Encoding": {
+          "type": [
+            "null",
+            "number"
+          ]
+        },
+        "Lock": {
+          "type": [
+            "null",
+            "number"
+          ]
+        },
+        "Merge": {
+          "type": [
+            "null",
+            "number"
+          ]
+        },
+        "Property": {
+          "type": [
+            "null",
+            "number"
+          ]
+        },
+        "Rename": {
+          "type": [
+            "null",
+            "number"
+          ]
+        },
+        "Rollback": {
+          "type": [
+            "null",
+            "number"
+          ]
+        },
+        "SourceRename": {
+          "type": [
+            "null",
+            "number"
+          ]
+        },
+        "TargetRename": {
+          "type": [
+            "null",
+            "number"
+          ]
+        },
+        "Undelete": {
+          "type": [
+            "null",
+            "number"
+          ]
+        }
+      }
+    },
+    "GitPushRef": {
+      "type": ["null", "object"],
+      "additionalProperties": false,
+      "properties": {
+        "date": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "pushId": {
+          "type": [
+            "null",
+            "number"
+          ]
+        },
+        "pushedBy": {
+          "$ref": "IdentifyRef"
+        },
+        "url": {
+          "type": [
+            "null",
+            "string"
+          ]
+        }
+      }
+    },
+    "IdentifyRef": {
+      "type": ["null", "object"],
+      "properties": {
+        "id": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "descriptor": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "The descriptor is the primary way to reference the graph subject while the system is running. This field will uniquely identify the same graph subject across both Accounts and Organizations."
+        },
+        "displayName": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "This is the non-unique display name of the graph subject. To change this field, you must alter its value in the source provider."
+        },
+        "isDeletedInOrigin": {
+          "type": [
+            "null",
+            "boolean"
+          ]
+        },
+        "url": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "This url is the full route to the source resource of this graph subject."
+        }
+      }
+    },
+    "GitChange": {
+      "type": ["null", "object"],
+      "properties": {
+        "changeId": {
+          "type": [
+            "null",
+            "number"
+          ],
+          "description": "ID of the change within the group of changes."
+        },
+        "changeType": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "The type of change that was made to the item."
+        },
+        "item": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Current version."
+        },
+        "originalPath": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Original path of item if different from current path."
+        },
+        "sourceServerItem": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Path of the item on the server."
+        },
+        "url": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "URL to retrieve the item."
+        }
+      }
+    },
+    "GitStatus": {
+      "type": [
+        "null",
+        "object"
+      ],
+      "patternProperties": {
+        ".+": {}
+      }
+    },
+    "ResourceRef": {
+      "type": [
+        "null",
+        "object"
+      ],
+      "patternProperties": {
+        ".+": {}
+      }
     }
-  },
-  "additionalProperties": false
+  }
 }
