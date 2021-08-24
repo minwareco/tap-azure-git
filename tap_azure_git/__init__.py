@@ -162,7 +162,7 @@ def authed_get(source, url, headers={}):
     with metrics.http_request_timer(source) as timer:
         session.headers.update(headers)
         # Uncomment for debugging
-        logger.info("requesting {}".format(url))
+        #logger.info("requesting {}".format(url))
         resp = session.request(method='get', url=url)
         if resp.status_code != 200:
             raise_for_error(resp, source)
@@ -170,7 +170,7 @@ def authed_get(source, url, headers={}):
         rate_throttling(resp)
         return resp
 
-PAGE_SIZE = 1
+PAGE_SIZE = 100
 def authed_get_all_pages(source, url, page_param_name='', skip_param_name='', no_stop_indicator=False, headers={}):
     offset = 0
     if page_param_name:
@@ -205,7 +205,7 @@ def authed_get_all_pages(source, url, page_param_name='', skip_param_name='', no
         # endpoint actually has NO method of indicating the availability of more results, so you
         # literally have to just keep querying until you don't get any more data.
         elif no_stop_indicator:
-            if r.json()['count'] == 0:
+            if r.json()['count'] < PAGE_SIZE:
                 break
             else:
                 offset += PAGE_SIZE
@@ -408,7 +408,9 @@ def get_all_pull_requests(schema, org, repo_path, state, mdata, start_date):
     bookmark = get_bookmark(state, repo_path, "pull_requests", "since", start_date)
     if not bookmark:
         bookmark = '1970-01-01'
-    bookmarkTime = pytz.UTC.localize(parser.parse(bookmark))
+    bookmarkTime = parser.parse(bookmark)
+    if bookmarkTime.tzinfo is None:
+        bookmarkTime = pytz.UTC.localize(bookmarkTime)
 
     with metrics.record_counter('pull_requests') as counter:
         extraction_time = singer.utils.now()
@@ -426,7 +428,6 @@ def get_all_pull_requests(schema, org, repo_path, state, mdata, start_date):
                 # Since there is no fromDate parameter in the API, just filter out PRs that have been
                 # closed prior to the the starting time
                 if 'closedDate' in pr and parser.parse(pr['closedDate']) < bookmarkTime:
-                    logger.info("PR closed at {}, before bookmark time {}, skipping".format(pr['closedDate'], bookmark))
                     continue
 
                 # List the PR commits to include those
@@ -468,8 +469,6 @@ def get_all_pull_requests(schema, org, repo_path, state, mdata, start_date):
                 singer.write_record('pull_requests', rec, time_extracted=extraction_time)
                 singer.write_bookmark(state, repo_path, 'pull_requests', {'since': singer.utils.strftime(extraction_time)})
                 counter.increment()
-                break
-            #break
 
     return state
 
