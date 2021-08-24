@@ -5,6 +5,9 @@
     "_sdc_repository": {
       "type": ["string"]
     },
+    "_sdc_pullRequestId": {
+      "type": ["integer"]
+    },
     "comments": {
       "type": [
         "null",
@@ -18,7 +21,7 @@
     "id": {
       "type": [
         "null",
-        "number"
+        "integer"
       ],
       "description": "The comment thread id."
     },
@@ -101,7 +104,7 @@
         "id": {
           "type": [
             "null",
-            "number"
+            "integer"
           ],
           "description": "The comment ID. IDs start at 1 and are unique to a pull request."
         },
@@ -129,7 +132,7 @@
         "parentCommentId": {
           "type": [
             "null",
-            "number"
+            "integer"
           ],
           "description": "The ID of the parent comment. This is used for replies."
         },
@@ -186,14 +189,14 @@
         "line": {
           "type": [
             "null",
-            "number"
+            "integer"
           ],
           "description": "The line number of a thread's position. Starts at 1."
         },
         "offset": {
           "type": [
             "null",
-            "number"
+            "integer"
           ],
           "description": "The character offset of a thread's position inside of a line. Starts at 0."
         }
