@@ -1,0 +1,251 @@
+{
+  "type": ["null", "object"],
+  "additionalProperties": false,
+  "properties": {
+    "_sdc_repository": {
+      "type": ["string"]
+    },
+    "_sdc_pullRequestId": {
+      "type": ["integer"]
+    },
+    "comments": {
+      "type": [
+        "null",
+        "array"
+      ],
+      "items": {
+        "$ref": "Comment"
+      },
+      "description": "A list of the comments."
+    },
+    "id": {
+      "type": [
+        "null",
+        "integer"
+      ],
+      "description": "The comment thread id."
+    },
+    "identities": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "description": "Set of identities related to this thread (JSON encoded)"
+    },
+    "isDeleted": {
+      "type": [
+        "null",
+        "boolean"
+      ],
+      "description": "Specify if the thread is deleted which happens when all comments are deleted."
+    },
+    "lastUpdatedDate": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "description": "The time this thread was last updated."
+    },
+    "properties": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "description": "Optional properties associated with the thread as a collection of key-value pairs. (JSON encoded)"
+    },
+    "publishedDate": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "description": "The time this thread was published."
+    },
+    "pullRequestThreadContext": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "description": "Comment thread context contains details about what diffs were being viewed at the time of thread creation and whether or not the thread has been tracked from that original diff. (JSON encoded)"
+    },
+    "status": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "description": "The status of the comment thread."
+    },
+    "threadContext": {
+      "$ref": "CommentThreadContext",
+      "description": "Specify thread context such as position in left/right file."
+    }
+  },
+  "definitions": {
+    "Comment": {
+      "type": ["null", "object"],
+      "properties": {
+        "author": {
+          "$ref": "IdentityRef",
+          "description": "The author of the comment."
+        },
+        "commentType": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "The comment type at the time of creation."
+        },
+        "content": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "The comment content."
+        },
+        "id": {
+          "type": [
+            "null",
+            "integer"
+          ],
+          "description": "The comment ID. IDs start at 1 and are unique to a pull request."
+        },
+        "isDeleted": {
+          "type": [
+            "null",
+            "boolean"
+          ],
+          "description": "Whether or not this comment was soft-deleted."
+        },
+        "lastContentUpdatedDate": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "The date the comment's content was last updated."
+        },
+        "lastUpdatedDate": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "The date the comment was last updated."
+        },
+        "parentCommentId": {
+          "type": [
+            "null",
+            "integer"
+          ],
+          "description": "The ID of the parent comment. This is used for replies."
+        },
+        "publishedDate": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "The date the comment was first published."
+        },
+        "usersLiked": {
+          "type": [
+            "null",
+            "array"
+          ],
+          "items": {
+            "$ref": "IdentityRef"
+          },
+          "description": "A list of the users who have liked this comment."
+        }
+      }
+    },
+    "CommentThreadContext": {
+      "type": ["null", "object"],
+      "properties": {
+        "filePath": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "File path relative to the root of the repository. It's up to the client to use any path format."
+        },
+        "leftFileEnd": {
+          "$ref": "CommentPosition",
+          "description": "Position of last character of the thread's span in left file."
+        },
+        "leftFileStart": {
+          "$ref": "CommentPosition",
+          "description": "Position of first character of the thread's span in left file."
+        },
+        "rightFileEnd": {
+          "$ref": "CommentPosition",
+          "description": "Position of last character of the thread's span in right file."
+        },
+        "rightFileStart": {
+          "$ref": "CommentPosition",
+          "description": "Position of first character of the thread's span in right file."
+        }
+      }
+    },
+    "CommentPosition": {
+      "type": ["null", "object"],
+      "properties": {
+        "line": {
+          "type": [
+            "null",
+            "integer"
+          ],
+          "description": "The line number of a thread's position. Starts at 1."
+        },
+        "offset": {
+          "type": [
+            "null",
+            "integer"
+          ],
+          "description": "The character offset of a thread's position inside of a line. Starts at 0."
+        }
+      }
+    },
+    "IdentityRef": {
+      "type": ["null", "object"],
+      "properties": {
+        "id": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "descriptor": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "The descriptor is the primary way to reference the graph subject while the system is running. This field will uniquely identify the same graph subject across both Accounts and Organizations."
+        },
+        "displayName": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "This is the non-unique display name of the graph subject. To change this field, you must alter its value in the source provider."
+        },
+        "uniqueName": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "This is the non-unique display name of the graph subject. To change this field, you must alter its value in the source provider."
+        },
+        "isDeletedInOrigin": {
+          "type": [
+            "null",
+            "boolean"
+          ]
+        },
+        "url": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "This url is the full route to the source resource of this graph subject."
+        }
+      }
+    }
+  }
+}

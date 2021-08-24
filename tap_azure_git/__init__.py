@@ -21,6 +21,7 @@ REQUIRED_CONFIG_KEYS = ['start_date', 'user_name', 'access_token', 'org', 'repos
 KEY_PROPERTIES = {
     'commits': ['commitId'], # This is the SHA
     'pull_requests': ['artifactId'],
+    'pull_request_threads': ['id'],
 }
 
 API_VESION = "6.0"
@@ -395,7 +396,35 @@ def get_all_commits(schema, org, repo_path, state, mdata, start_date):
 
     return state
 
-def get_all_pull_requests(schema, org, repo_path, state, mdata, start_date):
+def get_threads_for_pr(prid, schema, org, repo_path, state, mdata):
+    '''
+    https://docs.microsoft.com/en-us/rest/api/azure/devops/git/pull-request-threads/pull-request-threads-list?view=azure-devops-rest-6.0
+
+    WARNING: This API has no paging support whatsoever, so hope that there aren't any limits.
+    '''
+    reposplit = repo_path.split('/')
+    project = reposplit[0]
+    project_repo = reposplit[1]
+
+    for response in authed_get_all_pages(
+            'pull_request_threads',
+            "https://dev.azure.com/{}/{}/_apis/git/repositories/{}/pullrequests/{}/threads?" \
+            "api-version={}" \
+            .format(org, project, project_repo, prid, API_VESION)
+    ):
+        threads = response.json()
+        for thread in threads['value']:
+            thread['_sdc_repository'] = repo_path
+            thread['_sdc_pullRequestId'] = prid
+            with singer.Transformer() as transformer:
+                rec = transformer.transform(thread, schema, metadata=metadata.to_map(mdata))
+            yield rec
+
+        # I'm honestly not sure what the purpose is of this, but it was in the github tap
+        return state
+
+
+def get_all_pull_requests(schemas, org, repo_path, state, mdata, start_date):
     '''
     https://docs.microsoft.com/en-us/rest/api/azure/devops/git/pull-requests/pull-requests-get-pull-requests?view=azure-devops-rest-6.1
 
@@ -430,13 +459,15 @@ def get_all_pull_requests(schema, org, repo_path, state, mdata, start_date):
                 if 'closedDate' in pr and parser.parse(pr['closedDate']) < bookmarkTime:
                     continue
 
+                prid = pr['pullRequestId']
+
                 # List the PR commits to include those
                 pr['commits'] = []
                 for pr_commit_response in authed_get_all_pages(
                         'pull_requests/commits',
                         "https://dev.azure.com/{}/{}/_apis/git/repositories/{}/pullrequests/{}/commits?" \
                         "api-version={}" \
-                        .format(org, project, project_repo, pr['pullRequestId'], API_VESION),
+                        .format(org, project, project_repo, prid, API_VESION),
                         '$top',
                         'continuationToken'
                 ):
@@ -462,13 +493,19 @@ def get_all_pull_requests(schema, org, repo_path, state, mdata, start_date):
                 project_id = url_search.group(1)
                 repo_id = url_search.group(2)
                 pr['artifactId'] = "vstfs:///Git/PullRequestId/{}%2f{}%2f{}" \
-                    .format(project_id, repo_id, pr['pullRequestId'])
+                    .format(project_id, repo_id, prid)
 
                 with singer.Transformer() as transformer:
-                    rec = transformer.transform(pr, schema, metadata=metadata.to_map(mdata))
+                    rec = transformer.transform(pr, schemas['pull_requests'], metadata=metadata.to_map(mdata))
                 singer.write_record('pull_requests', rec, time_extracted=extraction_time)
                 singer.write_bookmark(state, repo_path, 'pull_requests', {'since': singer.utils.strftime(extraction_time)})
                 counter.increment()
+
+                # sync pull_request_threads if that schema is present
+                if schemas.get('pull_request_threads'):
+                    for thread_rec in get_threads_for_pr(prid, schemas['pull_request_threads'], org, repo_path, state, mdata):
+                        singer.write_record('pull_request_threads', thread_rec, time_extracted=extraction_time)
+                        singer.write_bookmark(state, repo_path, 'pull_request_threads', {'since': singer.utils.strftime(extraction_time)})
 
     return state
 
@@ -504,7 +541,7 @@ SYNC_FUNCTIONS = {
 }
 
 SUB_STREAMS = {
-    #'pull_requests': ['reviews', 'review_comments', 'pr_commits'],
+    'pull_requests': ['pull_request_threads'],
 }
 
 def do_sync(config, state, catalog):

@@ -121,37 +121,37 @@
         "Add": {
           "type": [
             "null",
-            "number"
+            "integer"
           ]
         },
         "Delete": {
           "type": [
             "null",
-            "number"
+            "integer"
           ]
         },
         "Edit": {
           "type": [
             "null",
-            "number"
+            "integer"
           ]
         },
         "Rename": {
           "type": [
             "null",
-            "number"
+            "integer"
           ]
         },
         "Delete, SourceRename": {
           "type": [
             "null",
-            "number"
+            "integer"
           ]
         },
         "Edit, Rename": {
           "type": [
             "null",
-            "number"
+            "integer"
           ]
         }
       },
@@ -172,7 +172,7 @@
         "pushId": {
           "type": [
             "null",
-            "number"
+            "integer"
           ]
         },
         "pushedBy": {

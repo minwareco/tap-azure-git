@@ -30,7 +30,7 @@
     "codeReviewId": {
       "type": [
         "null",
-        "number"
+        "integer"
       ],
       "description": "The code review ID of the pull request. Used internally."
     },
@@ -147,7 +147,7 @@
     "pullRequestId": {
       "type": [
         "null",
-        "number"
+        "integer"
       ],
       "description": "The ID of the pull request."
     },
@@ -345,7 +345,7 @@
         "vote": {
           "type": [
             "null",
-            "number"
+            "integer"
           ],
           "description": "Vote on a pull request: 10 - approved, 5 - approved with suggestions, 0 - no vote, -5 - waiting for author, -10 - rejected"
         },
