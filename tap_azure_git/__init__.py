@@ -74,7 +74,8 @@ ERROR_CODE_EXCEPTION_MAPPING = {
     },
     401: {
         "raise_exception": BadCredentialsException,
-        "message": "Invalid authorization credentials."
+        "message": "Invalid authorization credentials. Please check that your access token is " \
+            "correct, has not expired, and has read access to the 'Code' and 'Pull Request Threads' scopes."
     },
     403: {
         "raise_exception": AuthException,
@@ -122,19 +123,25 @@ def get_bookmark(state, repo, stream_name, bookmark_key, start_date):
         return start_date
     return None
 
-def raise_for_error(resp, source):
+def raise_for_error(resp, source, url):
     error_code = resp.status_code
     try:
         response_json = resp.json()
     except Exception:
         response_json = {}
 
+    # TODO: if/when we hook this up to exception tracking, report the URL as metadat rather than as
+    # part of the exception message.
+
     if error_code == 404:
         details = ERROR_CODE_EXCEPTION_MAPPING.get(error_code).get("message")
-        message = "HTTP-error-code: 404, Error: {}. Please refer \'{}\' for more details.".format(details, response_json.get("documentation_url"))
+        message = "HTTP-error-code: 404, Error: {}. Please check that the following URL is valid "\
+            "and you have permission to access it: {}".format(details, url)
     else:
-        message = "HTTP-error-code: {}, Error: {}".format(
-            error_code, ERROR_CODE_EXCEPTION_MAPPING.get(error_code, {}).get("message", "Unknown Error") if response_json == {} else response_json)
+        message = "HTTP-error-code: {}, Error: {} Url: {}".format(
+            error_code, ERROR_CODE_EXCEPTION_MAPPING.get(error_code, {}) \
+            .get("message", "Unknown Error") if response_json == {} else response_json, \
+            url)
 
     exc = ERROR_CODE_EXCEPTION_MAPPING.get(error_code, {}).get("raise_exception", AzureException)
     raise exc(message) from None
@@ -144,19 +151,20 @@ def calculate_seconds(epoch):
     return int(round((epoch - current), 0))
 
 def rate_throttling(response):
-    # TODO: check Retry-After
-    """
-    if int(response.headers['X-RateLimit-Remaining']) == 0:
-        seconds_to_sleep = calculate_seconds(int(response.headers['X-RateLimit-Reset']))
+    '''
+    See documentation here, which recommends at least sleepign if a Retry-After header is sent.
 
-        if seconds_to_sleep > 600:
-            message = "API rate limit exceeded, please try after {} seconds.".format(seconds_to_sleep)
-            raise RateLimitExceeded(message) from None
-
-        logger.info("API rate limit exceeded. Tap will retry the data collection after %s seconds.", seconds_to_sleep)
-        time.sleep(seconds_to_sleep)
-    """
-    pass
+    https://docs.microsoft.com/en-us/azure/devops/integrate/concepts/rate-limits?view=azure-devops
+    '''
+    if 'Retry-After' in response.headers:
+        waitTime = int(response.headers['Retry-After'])
+        if waitTime < 1:
+            # Probably should never happen, but sleep at least one second if this header for some
+            # reason isn't a valid int or is less than 1
+            waitTime = 1
+        logger.info("API Retry-After wait time header found, sleeping for {} seconds." \
+            .format(waitTime))
+        time.sleep(waitTime)
 
 # pylint: disable=dangerous-default-value
 def authed_get(source, url, headers={}):
@@ -165,8 +173,9 @@ def authed_get(source, url, headers={}):
         # Uncomment for debugging
         #logger.info("requesting {}".format(url))
         resp = session.request(method='get', url=url)
+
         if resp.status_code != 200:
-            raise_for_error(resp, source)
+            raise_for_error(resp, source, url)
         timer.tags[metrics.Tag.http_status_code] = resp.status_code
         rate_throttling(resp)
         return resp
@@ -293,12 +302,19 @@ def get_catalog():
 
     return {'streams': streams}
 
-def verify_repo_access(url_for_repo, repo):
+def verify_repo_access(url_for_repo, repo, config):
     try:
         authed_get("verifying repository access", url_for_repo)
     except NotFoundException:
         # throwing user-friendly error message as it checks token access
-        message = "HTTP-error-code: 404, Error: Please check the repository name \'{}\' or you do not have sufficient permissions to access this repository.".format(repo)
+        org = config['org']
+        user_name = config['user_name']
+        reposplit = repo.split('/')
+        projectname = reposplit[0]
+        reponame = reposplit[1]
+        message = "HTTP-error-code: 404, Error: Please check the repository \'{}\' exists in " \
+            "project \'{}\' for org \'{}\', and that user \'{}\' has permission to access it." \
+            .format(reponame, projectname, org, user_name)
         raise NotFoundException(message) from None
 
 def verify_access_for_repo(config):
@@ -320,7 +336,7 @@ def verify_access_for_repo(config):
             .format(org, project, project_repo, per_page, page - 1, API_VESION)
 
         # Verifying for Repo access
-        verify_repo_access(url_for_repo, repo)
+        verify_repo_access(url_for_repo, repo, config)
 
 def do_discover(config):
     verify_access_for_repo(config)
