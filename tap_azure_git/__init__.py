@@ -21,6 +21,7 @@ REQUIRED_CONFIG_KEYS = ['start_date', 'user_name', 'access_token', 'org', 'repos
 KEY_PROPERTIES = {
     'commits': ['commitId'], # This is the SHA
     'pull_requests': ['artifactId'],
+    'pull_request_threads': ['id'],
 }
 
 API_VESION = "6.0"
@@ -504,7 +505,7 @@ SYNC_FUNCTIONS = {
 }
 
 SUB_STREAMS = {
-    #'pull_requests': ['reviews', 'review_comments', 'pr_commits'],
+    'pull_requests': ['pull_request_threads'],
 }
 
 def do_sync(config, state, catalog):

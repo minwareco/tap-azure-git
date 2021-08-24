@@ -5,13 +5,6 @@
     "_sdc_repository": {
       "type": ["string"]
     },
-    "_uniqueId": {
-      "type": [
-        "null",
-        "string"
-      ],
-      "description": "Globally unique identifier, created by singer."
-    },
     "comments": {
       "type": [
         "null",
@@ -85,116 +78,170 @@
   },
   "definitions": {
     "Comment": {
-      "author": {
-        "$ref": "IdentityRef",
-        "description": "The author of the comment."
-      },
-      "commentType": {
-        "type": [
-          "null",
-          "string"
-        ],
-        "description": "The comment type at the time of creation."
-      },
-      "content": {
-        "type": [
-          "null",
-          "string"
-        ],
-        "description": "The comment content."
-      },
-      "id": {
-        "type": [
-          "null",
-          "number"
-        ],
-        "description": "The comment ID. IDs start at 1 and are unique to a pull request."
-      },
-      "isDeleted": {
-        "type": [
-          "null",
-          "boolean"
-        ],
-        "description": "Whether or not this comment was soft-deleted."
-      },
-      "lastContentUpdatedDate": {
-        "type": [
-          "null",
-          "string"
-        ],
-        "description": "The date the comment's content was last updated."
-      },
-      "lastUpdatedDate": {
-        "type": [
-          "null",
-          "string"
-        ],
-        "description": "The date the comment was last updated."
-      },
-      "parentCommentId": {
-        "type": [
-          "null",
-          "number"
-        ],
-        "description": "The ID of the parent comment. This is used for replies."
-      },
-      "publishedDate": {
-        "type": [
-          "null",
-          "string"
-        ],
-        "description": "The date the comment was first published."
-      },
-      "usersLiked": {
-        "type": [
-          "null",
-          "array"
-        ],
-        "items": {
-          "$ref": "IdentityRef"
+      "type": ["null", "object"],
+      "properties": {
+        "author": {
+          "$ref": "IdentityRef",
+          "description": "The author of the comment."
         },
-        "description": "A list of the users who have liked this comment."
+        "commentType": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "The comment type at the time of creation."
+        },
+        "content": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "The comment content."
+        },
+        "id": {
+          "type": [
+            "null",
+            "number"
+          ],
+          "description": "The comment ID. IDs start at 1 and are unique to a pull request."
+        },
+        "isDeleted": {
+          "type": [
+            "null",
+            "boolean"
+          ],
+          "description": "Whether or not this comment was soft-deleted."
+        },
+        "lastContentUpdatedDate": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "The date the comment's content was last updated."
+        },
+        "lastUpdatedDate": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "The date the comment was last updated."
+        },
+        "parentCommentId": {
+          "type": [
+            "null",
+            "number"
+          ],
+          "description": "The ID of the parent comment. This is used for replies."
+        },
+        "publishedDate": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "The date the comment was first published."
+        },
+        "usersLiked": {
+          "type": [
+            "null",
+            "array"
+          ],
+          "items": {
+            "$ref": "IdentityRef"
+          },
+          "description": "A list of the users who have liked this comment."
+        }
       }
     },
     "CommentThreadContext": {
-      "filePath": {
-        "type": [
-          "null",
-          "string"
-        ],
-        "description": "File path relative to the root of the repository. It's up to the client to use any path format."
-      },
-      "leftFileEnd": {
-        "$ref": "CommentPosition",
-        "description": "Position of last character of the thread's span in left file."
-      },
-      "leftFileStart": {
-        "$ref": "CommentPosition",
-        "description": "Position of first character of the thread's span in left file."
-      },
-      "rightFileEnd": {
-        "$ref": "CommentPosition",
-        "description": "Position of last character of the thread's span in right file."
-      },
-      "rightFileStart": {
-        "$ref": "CommentPosition",
-        "description": "Position of first character of the thread's span in right file."
+      "type": ["null", "object"],
+      "properties": {
+        "filePath": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "File path relative to the root of the repository. It's up to the client to use any path format."
+        },
+        "leftFileEnd": {
+          "$ref": "CommentPosition",
+          "description": "Position of last character of the thread's span in left file."
+        },
+        "leftFileStart": {
+          "$ref": "CommentPosition",
+          "description": "Position of first character of the thread's span in left file."
+        },
+        "rightFileEnd": {
+          "$ref": "CommentPosition",
+          "description": "Position of last character of the thread's span in right file."
+        },
+        "rightFileStart": {
+          "$ref": "CommentPosition",
+          "description": "Position of first character of the thread's span in right file."
+        }
       }
     },
     "CommentPosition": {
-      "line": {
-        "type": [
-          "null",
-          "number"
-        ],
-        "description": "The line number of a thread's position. Starts at 1."
-      },
-      "offset": {
-        "type": [
-          "null",
-          "number"
-        ],
-        "description": "The character offset of a thread's position inside of a line. Starts at 0."
+      "type": ["null", "object"],
+      "properties": {
+        "line": {
+          "type": [
+            "null",
+            "number"
+          ],
+          "description": "The line number of a thread's position. Starts at 1."
+        },
+        "offset": {
+          "type": [
+            "null",
+            "number"
+          ],
+          "description": "The character offset of a thread's position inside of a line. Starts at 0."
+        }
+      }
+    },
+    "IdentityRef": {
+      "type": ["null", "object"],
+      "properties": {
+        "id": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "descriptor": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "The descriptor is the primary way to reference the graph subject while the system is running. This field will uniquely identify the same graph subject across both Accounts and Organizations."
+        },
+        "displayName": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "This is the non-unique display name of the graph subject. To change this field, you must alter its value in the source provider."
+        },
+        "uniqueName": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "This is the non-unique display name of the graph subject. To change this field, you must alter its value in the source provider."
+        },
+        "isDeletedInOrigin": {
+          "type": [
+            "null",
+            "boolean"
+          ]
+        },
+        "url": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "This url is the full route to the source resource of this graph subject."
+        }
       }
     }
   }
