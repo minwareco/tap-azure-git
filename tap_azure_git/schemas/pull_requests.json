@@ -226,7 +226,7 @@
     }
   },
   "definitions": {
-    "IdentifyRef": {
+    "IdentityRef": {
       "type": ["null", "object"],
       "properties": {
         "id": {

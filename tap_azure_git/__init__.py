@@ -3,7 +3,10 @@ import os
 import json
 import collections
 import time
+from dateutil import parser
+import pytz
 import requests
+import re
 import singer
 import singer.bookmarks as bookmarks
 import singer.metrics as metrics
@@ -17,6 +20,7 @@ REQUIRED_CONFIG_KEYS = ['start_date', 'user_name', 'access_token', 'org', 'repos
 
 KEY_PROPERTIES = {
     'commits': ['commitId'], # This is the SHA
+    'pull_requests': ['artifactId'],
 }
 
 API_VESION = "6.0"
@@ -158,7 +162,7 @@ def authed_get(source, url, headers={}):
     with metrics.http_request_timer(source) as timer:
         session.headers.update(headers)
         # Uncomment for debugging
-        #logger.info("requesting {}".format(url))
+        logger.info("requesting {}".format(url))
         resp = session.request(method='get', url=url)
         if resp.status_code != 200:
             raise_for_error(resp, source)
@@ -166,27 +170,47 @@ def authed_get(source, url, headers={}):
         rate_throttling(resp)
         return resp
 
-PAGE_SIZE = 100
-def authed_get_all_pages(source, url, page_param_name='', skip_param_name='', headers={}):
+PAGE_SIZE = 1
+def authed_get_all_pages(source, url, page_param_name='', skip_param_name='', no_stop_indicator=False, headers={}):
     offset = 0
     if page_param_name:
         baseurl = url + '&{}={}'.format(page_param_name, PAGE_SIZE)
     else:
         baseurl = url
+    continuationToken = ''
     while True:
-        if page_param_name:
+        if skip_param_name == 'continuationToken':
+            if continuationToken:
+                cururl = baseurl + '&continuationToken={}'.format(continuationToken)
+            else:
+                cururl = baseurl
+        elif page_param_name:
             cururl = baseurl + '&{}={}'.format(skip_param_name, offset)
         else:
             cururl = baseurl
+
         r = authed_get(source, cururl, headers)
         yield r
+
         # Look for a link header, and will have to update the URL parameters accordingly
         # link: <https://dev.azure.com/_apis/git/repositories/scheduled/commits>;rel="next"
-        # Except for the changes endpoint, the server sends an empty link header, which just seems
-        # buggy, but we have to handle it.
+        # Exception: for the changes endpoint, the server sends an empty link header, which just
+        # seems buggy, but we have to handle it.
         if page_param_name and 'link' in r.headers and \
                 ('rel="next"' in r.headers['link'] or '' == r.headers['link']):
             offset += PAGE_SIZE
+        # You know what's awesome? How every endpoint implements pagination in a completely
+        # different and inconsistent way.
+        # Funny true story: After I wrote the comment above, I discovered that the pullrequests
+        # endpoint actually has NO method of indicating the availability of more results, so you
+        # literally have to just keep querying until you don't get any more data.
+        elif no_stop_indicator:
+            if r.json()['count'] == 0:
+                break
+            else:
+                offset += PAGE_SIZE
+        elif 'x-ms-continuationtoken' in r.headers:
+            continuationToken = r.headers['x-ms-continuationtoken']
         else:
             break
 
@@ -303,6 +327,40 @@ def do_discover(config):
     # dump catalog
     print(json.dumps(catalog, indent=2))
 
+def write_commit_detail(org, project, project_repo, commit, schema, mdata, extraction_time):
+    # Fetch the individual commit to obtain parents. This also provides pushes and other
+    # properties, but we don't care about those for now.
+    for commit_detail in authed_get_all_pages(
+        'commits',
+        "https://dev.azure.com/{}/{}/_apis/git/repositories/{}/commits/{}?" \
+        "api-version={}" \
+        .format(org, project, project_repo, commit['commitId'], API_VESION)
+    ):
+        detail_json = commit_detail.json()
+        commit['parents'] = detail_json['parents']
+
+    # TODO: include the first 100 changes in the request above and don't make the
+    # additional changes request unless it's necessary. This will speed things up and
+    # reduce the number of requests.
+
+    # Augment each commit with file-level change data by querying the changes endpoint.
+    commit['changes'] = []
+    for commit_change_detail in authed_get_all_pages(
+        'commits/changes',
+        "https://dev.azure.com/{}/{}/_apis/git/repositories/{}/commits/{}/changes?" \
+        "api-version={}" \
+        .format(org, project, project_repo, commit['commitId'], API_VESION),
+        'top',
+        'skip'
+    ):
+        detail_json = commit_change_detail.json()
+        commit['changes'].extend(detail_json['changes'])
+
+    commit['_sdc_repository'] = "{}/{}".format(project, project_repo)
+    with singer.Transformer() as transformer:
+        rec = transformer.transform(commit, schema, metadata=metadata.to_map(mdata))
+    singer.write_record('commits', rec, time_extracted=extraction_time)
+
 def get_all_commits(schema, org, repo_path, state, mdata, start_date):
     '''
     https://docs.microsoft.com/en-us/rest/api/azure/devops/git/commits/get-commits?view=azure-devops-rest-6.0#gitcommitref
@@ -330,42 +388,91 @@ def get_all_commits(schema, org, repo_path, state, mdata, start_date):
         ):
             commits = response.json()
             for commit in commits['value']:
-                # Fetch the individual commit to obtain parents. This also provides pushes and other
-                # properties, but we don't care about those for now.
-                for commit_detail in authed_get_all_pages(
-                    'commits/changes',
-                    "https://dev.azure.com/{}/{}/_apis/git/repositories/{}/commits/{}?" \
-                    "api-version={}" \
-                    .format(org, project, project_repo, commit['commitId'], API_VESION)
-                ):
-                    detail_json = commit_detail.json()
-                    commit['parents'] = detail_json['parents']
 
-                # TODO: include the first 100 changes in the request above and don't make the
-                # additional changes request unless it's necessary. This will speed things up and
-                # reduce the number of requests.
-
-                # Augment each commit with file-level change data by querying the changes endpoint.
-                commit['changes'] = []
-                for commit_change_detail in authed_get_all_pages(
-                    'commits/changes',
-                    "https://dev.azure.com/{}/{}/_apis/git/repositories/{}/commits/{}/changes?" \
-                    "api-version={}" \
-                    .format(org, project, project_repo, commit['commitId'], API_VESION),
-                    'top',
-                    'skip'
-                ):
-                    detail_json = commit_change_detail.json()
-                    commit['changes'].extend(detail_json['changes'])
-
-                commit['_sdc_repository'] = repo_path
-                with singer.Transformer() as transformer:
-                    rec = transformer.transform(commit, schema, metadata=metadata.to_map(mdata))
-                singer.write_record('commits', rec, time_extracted=extraction_time)
+                write_commit_detail(org, project, project_repo, commit, schema, mdata, extraction_time)
                 singer.write_bookmark(state, repo_path, 'commits', {'since': singer.utils.strftime(extraction_time)})
                 counter.increment()
 
     return state
+
+def get_all_pull_requests(schema, org, repo_path, state, mdata, start_date):
+    '''
+    https://docs.microsoft.com/en-us/rest/api/azure/devops/git/pull-requests/pull-requests-get-pull-requests?view=azure-devops-rest-6.1
+
+    Note: commits will need to be fetched separately in a request to list PR commits
+    '''
+    reposplit = repo_path.split('/')
+    project = reposplit[0]
+    project_repo = reposplit[1]
+
+    bookmark = get_bookmark(state, repo_path, "pull_requests", "since", start_date)
+    if not bookmark:
+        bookmark = '1970-01-01'
+    bookmarkTime = pytz.UTC.localize(parser.parse(bookmark))
+
+    with metrics.record_counter('pull_requests') as counter:
+        extraction_time = singer.utils.now()
+        for response in authed_get_all_pages(
+                'pull_requests',
+                "https://dev.azure.com/{}/{}/_apis/git/repositories/{}/pullrequests?" \
+                "api-version={}&searchCriteria.status=all" \
+                .format(org, project, project_repo, API_VESION),
+                '$top',
+                '$skip',
+                True # No link header to indicate availability of more data
+        ):
+            prs = response.json()['value']
+            for pr in prs:
+                # Since there is no fromDate parameter in the API, just filter out PRs that have been
+                # closed prior to the the starting time
+                if 'closedDate' in pr and parser.parse(pr['closedDate']) < bookmarkTime:
+                    logger.info("PR closed at {}, before bookmark time {}, skipping".format(pr['closedDate'], bookmark))
+                    continue
+
+                # List the PR commits to include those
+                pr['commits'] = []
+                for pr_commit_response in authed_get_all_pages(
+                        'pull_requests/commits',
+                        "https://dev.azure.com/{}/{}/_apis/git/repositories/{}/pullrequests/{}/commits?" \
+                        "api-version={}" \
+                        .format(org, project, project_repo, pr['pullRequestId'], API_VESION),
+                        '$top',
+                        'continuationToken'
+                ):
+                    pr_commits = pr_commit_response.json()
+                    pr['commits'].extend(pr_commits['value'])
+
+                    # Note: These commits will already have their detail fetched by the commits
+                    # endpoint (even if they are in an unmerged PR or abandoned), so we don't need
+                    # to fetch more info here -- we only need to provide the shallow references.
+
+                # Write out the pull request info
+
+                pr['_sdc_repository'] = repo_path
+
+                # So pullRequestId isn't actually unique. There is a 'artifactId' parameter that is
+                # unique, but, surprise surprise, the API doesn't actually include this property
+                # when listing multiple PRs, so we need to construct it from the URL. Hilariously,
+                # this ID also contains %2f for the later slashes instead of actual slashes.
+                # Get the project_id and repo_id from the URL
+                # TODO: not sure what type of exception to throw here if if the url isn't present
+                # and matching this format.
+                url_search = re.search('dev\\.azure\\.com/\w+/([-\w]+)/_apis/git/repositories/([-\w]+)', pr['url'])
+                project_id = url_search.group(1)
+                repo_id = url_search.group(2)
+                pr['artifactId'] = "vstfs:///Git/PullRequestId/{}%2f{}%2f{}" \
+                    .format(project_id, repo_id, pr['pullRequestId'])
+
+                with singer.Transformer() as transformer:
+                    rec = transformer.transform(pr, schema, metadata=metadata.to_map(mdata))
+                singer.write_record('pull_requests', rec, time_extracted=extraction_time)
+                singer.write_bookmark(state, repo_path, 'pull_requests', {'since': singer.utils.strftime(extraction_time)})
+                counter.increment()
+                break
+            #break
+
+    return state
+
 
 def get_selected_streams(catalog):
     '''
@@ -394,7 +501,7 @@ def get_stream_from_catalog(stream_id, catalog):
 
 SYNC_FUNCTIONS = {
     'commits': get_all_commits,
-    #'pull_requests': get_all_pull_requests,
+    'pull_requests': get_all_pull_requests,
 }
 
 SUB_STREAMS = {

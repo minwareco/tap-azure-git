@@ -10,7 +10,8 @@ setup(name='tap-azure-git',
       py_modules=['tap_azure_git'],
       install_requires=[
           'singer-python==5.12.1',
-          'requests==2.20.0'
+          'requests==2.20.0',
+          'dateutil==2.8.2'
       ],
       extras_require={
           'dev': [
