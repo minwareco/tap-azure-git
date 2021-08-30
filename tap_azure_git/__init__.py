@@ -10,6 +10,7 @@ import re
 import singer
 import singer.bookmarks as bookmarks
 import singer.metrics as metrics
+import difflib
 
 from singer import metadata
 
@@ -344,6 +345,80 @@ def do_discover(config):
     # dump catalog
     print(json.dumps(catalog, indent=2))
 
+def create_patch_for_files(old_text, new_text):
+    # Note: this patch may be slightly different from a patch generated with git since the diffing
+    # algorithms aren't the same, but it will at least be correct and in the same format.
+
+    newlineToken = '\\ No newline at end of file'
+    # Add this random data too in the rare case where a file literally ends in the newlineToken but
+    # does have a new line at the end.
+    sentinal = "SDF1G5ALB3YU"
+    newlineMarker = newlineToken + sentinal
+    newlineMarkerLength = len(newlineMarker)
+
+    # Also remove empty lines at end so that they aren't included in the diff output to get the
+    # format to match git's patches.
+
+    oldSplit = old_text.split('\n')
+    if oldSplit[-1] != '':
+        oldSplit[-1] += newlineMarker
+    else:
+        oldSplit = oldSplit[:-1]
+
+    newSplit = new_text.split('\n')
+    if newSplit[-1] != '':
+        newSplit[-1] += newlineMarker
+    else:
+        newSplit = newSplit[:-1]
+
+    # Patches don't use any when coming from the github API, so don't use nay here
+    diff = difflib.unified_diff(oldSplit, newSplit, n=0)
+
+    # Transform this to match the format of git patches coming from the API
+    difflist = list(diff)
+    newDiffList = []
+    firstDiffFound = False
+    for diffLine in difflist:
+        # Skip lines before the first @@
+        if diffLine[0:2] == '@@':
+            firstDiffFound = True
+        if not firstDiffFound:
+            continue
+
+        # Remove extra newlines after each diff line
+        if diffLine[-1:] == '\n':
+            newDiffList.append(diffLine[:-1])
+        # If we found the newline marker at the end, remove it and add the newline token on the next
+        # line like the diff format from github.
+        elif diffLine[-newlineMarkerLength:] == newlineMarker:
+            newDiffList.append(diffLine[:-newlineMarkerLength])
+            newDiffList.append(newlineToken)
+        else:
+            newDiffList.append(diffLine)
+
+    output = '\n'.join(newDiffList)
+    return output
+
+blob_cache = {}
+def fetch_blob(org, project, project_repo, object_id):
+    '''
+    Returns the raw bytes associated with a particular object
+    '''
+    url = "https://dev.azure.com/{}/{}/_apis/git/repositories/{}/blobs/{}?" \
+        "api-version={}" \
+        .format(org, project, project_repo, object_id, API_VESION)
+
+    # Cache this since we'll inevitably be querying the same blob multiple times as we walk through
+    # commits.
+    if url in blob_cache:
+        return blob_cache[url]
+
+    response = authed_get('blob', url)
+    blob_cache[url] = response.content
+    return response.content
+
+LARGE_FILE_DIFF_THRESHOLD = 1024 * 1024
+
 def write_commit_detail(org, project, project_repo, commit, schema, mdata, extraction_time):
     # Fetch the individual commit to obtain parents. This also provides pushes and other
     # properties, but we don't care about those for now.
@@ -372,6 +447,45 @@ def write_commit_detail(org, project, project_repo, commit, schema, mdata, extra
     ):
         detail_json = commit_change_detail.json()
         commit['changes'].extend(detail_json['changes'])
+
+    # Go through each change and fetch the blobs before/after to produce patches
+    for commit_change in commit['changes']:
+        commit_change_item = commit_change['item']
+        # We can skip directories, etc.
+        if commit_change_item['gitObjectType'] != 'blob':
+            continue
+
+        commit_change_item['isBinary'] = False
+        commit_change_item['isLargeFile'] = False
+
+        oldContent = b''
+        if 'originalObjectId' in commit_change_item and commit_change_item['originalObjectId'] != '':
+            oldContent = fetch_blob(org, project, project_repo, commit_change_item['originalObjectId'])
+
+        newContent = b''
+        if 'objectId' in commit_change_item and commit_change_item['objectId'] != '':
+            newContent = fetch_blob(org, project, project_repo, commit_change_item['objectId'])
+
+        try:
+            # Null characters can decode successfully, so check for these explicitly and raise
+            # decode errors to ensure that they are interpreted as binary
+            if b'\x00' in oldContent:
+                raise UnicodeDecodeError('utf-8', oldContent, 0, 0, 'Null byte found')
+            if b'\x00' in newContent:
+                raise UnicodeDecodeError('utf-8', newContent, 0, 0, 'Null byte found')
+
+            oldstr = oldContent.decode("utf-8")
+            newstr = newContent.decode("utf-8")
+            patch = create_patch_for_files(oldstr, newstr)
+
+            if len(patch) > LARGE_FILE_DIFF_THRESHOLD:
+                commit_change_item['isLargeFile'] = True
+            else:
+                commit_change_item['patch'] = patch
+
+        except UnicodeDecodeError:
+            # If we can't decode to utf-8, then treat the string as binary
+            commit_change_item['isBinary'] = True
 
     commit['_sdc_repository'] = "{}/{}".format(project, project_repo)
     with singer.Transformer() as transformer:
