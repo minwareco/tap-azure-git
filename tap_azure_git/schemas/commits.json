@@ -292,6 +292,24 @@
                 "null",
                 "string"
               ]
+            },
+            "patch": {
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            "isBinary": {
+              "type": [
+                "null",
+                "boolean"
+              ]
+            },
+            "isLargeFile": {
+              "type": [
+                "null",
+                "boolean"
+              ]
             }
           }
         }
