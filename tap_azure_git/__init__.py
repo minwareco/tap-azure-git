@@ -116,12 +116,12 @@ ERROR_CODE_EXCEPTION_MAPPING = {
     },
 }
 
-def get_bookmark(state, repo, stream_name, bookmark_key, start_date):
+def get_bookmark(state, repo, stream_name, bookmark_key, default_value=None):
     repo_stream_dict = bookmarks.get_bookmark(state, repo, stream_name)
     if repo_stream_dict:
         return repo_stream_dict.get(bookmark_key)
-    if start_date:
-        return start_date
+    if default_value:
+        return default_value
     return None
 
 def raise_for_error(resp, source, url):
@@ -182,13 +182,19 @@ def authed_get(source, url, headers={}):
         return resp
 
 PAGE_SIZE = 100
-def authed_get_all_pages(source, url, page_param_name='', skip_param_name='', no_stop_indicator=False, headers={}):
+def authed_get_all_pages(source, url, page_param_name='', skip_param_name='',
+        no_stop_indicator=False, iterate_state=None, headers={}):
     offset = 0
+    if iterate_state and 'offset' in iterate_state:
+        offset = iterate_state['offset']
     if page_param_name:
         baseurl = url + '&{}={}'.format(page_param_name, PAGE_SIZE)
     else:
         baseurl = url
     continuationToken = ''
+    if iterate_state and 'continuationToken' in iterate_state:
+        continuationToken = iterate_state['continuationToken']
+    isDone = False
     while True:
         if skip_param_name == 'continuationToken':
             if continuationToken:
@@ -217,13 +223,24 @@ def authed_get_all_pages(source, url, page_param_name='', skip_param_name='', no
         # literally have to just keep querying until you don't get any more data.
         elif no_stop_indicator:
             if r.json()['count'] < PAGE_SIZE:
+                isDone = True
                 break
             else:
                 offset += PAGE_SIZE
         elif 'x-ms-continuationtoken' in r.headers:
             continuationToken = r.headers['x-ms-continuationtoken']
         else:
+            isDone = True
             break
+        # If there's an iteration state, we only want to do one iteration
+        if iterate_state:
+            break
+
+    # Populate the iterate state if it's present
+    if iterate_state:
+        iterate_state['stop'] = isDone
+        iterate_state['offset'] = offset
+        iterate_state['continuationToken'] = continuationToken
 
 def get_abs_path(path):
     return os.path.join(os.path.dirname(os.path.realpath(__file__)), path)
@@ -503,26 +520,80 @@ def get_all_commits(schema, org, repo_path, state, mdata, start_date):
     project = reposplit[0]
     project_repo = reposplit[1]
 
+    # This will only be use if it's our first run and we don't have any fetchedCommits. See below.
     bookmark = get_bookmark(state, repo_path, "commits", "since", start_date)
     if not bookmark:
         bookmark = '1970-01-01'
 
+    # Get the set of all commits we have fetched previously
+    fetchedCommits = get_bookmark(state, repo_path, "commits", "fetchedCommits")
+    if not fetchedCommits:
+        fetchedCommits = {}
+    else:
+        # We have run previously, so we don't want to use the time-based bookmark becuase it could
+        # skip commits that are pushed after they are committed. So, reset the 'since' bookmark back
+        # to the beginning of time and rely solely on the fetchedCommits bookmark.
+        bookmark = '1970-01-01'
+
+    # We don't want newly fetched commits to update the state if we fail partway through, because
+    # this could lead to commits getting marked as fetched when their parents are never fetched. So,
+    # copy the dict.
+    fetchedCommits = fetchedCommits.copy()
+    # Maintain a list of parents we are waiting to see
+    missingParents = {}
+
     with metrics.record_counter('commits') as counter:
         extraction_time = singer.utils.now()
-        for response in authed_get_all_pages(
+        iterate_state = {'not': 'empty'}
+        count = 1
+        while True:
+            count += 1
+            response = authed_get_all_pages(
                 'commits',
                 "https://dev.azure.com/{}/{}/_apis/git/repositories/{}/commits?" \
                 "api-version={}&searchCriteria.fromDate={}" \
                 .format(org, project, project_repo, API_VESION, bookmark),
                 'searchCriteria.$top',
-                'searchCriteria.$skip'
-        ):
-            commits = response.json()
-            for commit in commits['value']:
+                'searchCriteria.$skip',
+                iterate_state=iterate_state
+            )
 
+            commits = list(response)[0].json()
+            for commit in commits['value']:
+                # Skip commits we've already imported
+                if commit['commitId'] in fetchedCommits:
+                    continue
+                # Will also populate the 'parents' sha list
                 write_commit_detail(org, project, project_repo, commit, schema, mdata, extraction_time)
-                singer.write_bookmark(state, repo_path, 'commits', {'since': singer.utils.strftime(extraction_time)})
+
+                # Record that we have now fetched this commit
+                fetchedCommits[commit['commitId']] = 1
+                # No longer a missing parent
+                missingParents.pop(commit['commitId'], None)
+
+                # Keep track of new missing parents
+                for parent in commit['parents']:
+                    if not parent in fetchedCommits:
+                        missingParents[parent] = 1
+
                 counter.increment()
+
+            # If there are no missing parents, then we are done prior to reaching the lst page
+            if not missingParents:
+                break
+            # Else if we have reached the end of our data but not found the parents, then we have a
+            # problem
+            elif iterate_state['stop']:
+                raise AzureException('Some commit parents never found: ' + \
+                    ','.join(missingParents.keys()))
+            # Otherwise, proceed to fetch the next page with the next iteration state
+
+    # Don't write until the end so that we don't record fetchedCommits if we fail and never get
+    # their parents.
+    singer.write_bookmark(state, repo_path, 'commits', {
+        'since': singer.utils.strftime(extraction_time),
+        'fetchedCommits': fetchedCommits
+    })
 
     return state
 
