@@ -153,7 +153,7 @@ def calculate_seconds(epoch):
 
 def rate_throttling(response):
     '''
-    See documentation here, which recommends at least sleepign if a Retry-After header is sent.
+    See documentation here, which recommends at least sleeping if a Retry-After header is sent.
 
     https://docs.microsoft.com/en-us/azure/devops/integrate/concepts/rate-limits?view=azure-devops
     '''
