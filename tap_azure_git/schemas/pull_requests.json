@@ -184,7 +184,7 @@
         "null",
         "string"
       ],
-      "description": "The status of the pull request."
+      "description": "The status of the pull request. One of: active, abandoned, completed."
     },
     "supportsIterations": {
       "type": [
