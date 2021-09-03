@@ -25,6 +25,7 @@
         "null",
         "string"
       ],
+      "format": "date-time",
       "description": "The date when the pull request was closed (completed, abandoned, or merged externally)."
     },
     "codeReviewId": {
@@ -53,6 +54,7 @@
         "null",
         "string"
       ],
+      "format": "date-time",
       "description": "The most recent date at which the pull request entered the queue to be completed. Used internally."
     },
     "createdBy": {
@@ -64,6 +66,7 @@
         "null",
         "string"
       ],
+      "format": "date-time",
       "description": "The date when the pull request was created."
     },
     "description": {
