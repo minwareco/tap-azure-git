@@ -1024,7 +1024,7 @@ def do_sync(config, state, catalog):
 
     domain = config['pull_domain'] if 'pull_domain' in config else 'dev.azure.com'
     gitLocal = GitLocal({
-        'access_token': config['private_token'],
+        'access_token': config['access_token'],
         'workingDir': '/tmp',
     }, 'https://{}@' + domain + '/{}', # repo is format: {org}/{project}/_git/{repo}
         config['hmac_token'] if 'hmac_token' in config else None)
