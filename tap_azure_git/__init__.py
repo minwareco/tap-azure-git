@@ -369,80 +369,6 @@ def do_discover(config):
     # dump catalog
     print(json.dumps(catalog, indent=2))
 
-def create_patch_for_files(old_text, new_text):
-    # Note: this patch may be slightly different from a patch generated with git since the diffing
-    # algorithms aren't the same, but it will at least be correct and in the same format.
-
-    newlineToken = '\\ No newline at end of file'
-    # Add this random data too in the rare case where a file literally ends in the newlineToken but
-    # does have a new line at the end.
-    sentinal = "SDF1G5ALB3YU"
-    newlineMarker = newlineToken + sentinal
-    newlineMarkerLength = len(newlineMarker)
-
-    # Also remove empty lines at end so that they aren't included in the diff output to get the
-    # format to match git's patches.
-
-    oldSplit = old_text.split('\n')
-    if oldSplit[-1] != '':
-        oldSplit[-1] += newlineMarker
-    else:
-        oldSplit = oldSplit[:-1]
-
-    newSplit = new_text.split('\n')
-    if newSplit[-1] != '':
-        newSplit[-1] += newlineMarker
-    else:
-        newSplit = newSplit[:-1]
-
-    # Patches don't use any when coming from the github API, so don't use nay here
-    diff = difflib.unified_diff(oldSplit, newSplit, n=0)
-
-    # Transform this to match the format of git patches coming from the API
-    difflist = list(diff)
-    newDiffList = []
-    firstDiffFound = False
-    for diffLine in difflist:
-        # Skip lines before the first @@
-        if diffLine[0:2] == '@@':
-            firstDiffFound = True
-        if not firstDiffFound:
-            continue
-
-        # Remove extra newlines after each diff line
-        if diffLine[-1:] == '\n':
-            newDiffList.append(diffLine[:-1])
-        # If we found the newline marker at the end, remove it and add the newline token on the next
-        # line like the diff format from github.
-        elif diffLine[-newlineMarkerLength:] == newlineMarker:
-            newDiffList.append(diffLine[:-newlineMarkerLength])
-            newDiffList.append(newlineToken)
-        else:
-            newDiffList.append(diffLine)
-
-    output = '\n'.join(newDiffList)
-    return output
-
-blob_cache = {}
-def fetch_blob(org, project, project_repo, object_id):
-    '''
-    Returns the raw bytes associated with a particular object
-    '''
-    url = "https://dev.azure.com/{}/{}/_apis/git/repositories/{}/blobs/{}?" \
-        "api-version={}" \
-        .format(org, project, project_repo, object_id, API_VESION)
-
-    # Cache this since we'll inevitably be querying the same blob multiple times as we walk through
-    # commits.
-    if url in blob_cache:
-        return blob_cache[url]
-
-    response = authed_get('blob', url)
-    blob_cache[url] = response.content
-    return response.content
-
-LARGE_FILE_DIFF_THRESHOLD = 1024 * 1024
-
 def write_commit_detail(org, project, project_repo, commit, schema, mdata, extraction_time):
     # Fetch the individual commit to obtain parents. This also provides pushes and other
     # properties, but we don't care about those for now.
@@ -630,7 +556,7 @@ def get_all_heads_for_commits(repo_path):
     return head_set
     '''
 
-def get_all_commit_files(schemas, org, repo_path, state, mdata, start_date, gitLocal):
+def get_all_commit_files(schemas, org, repo_path, state, mdata, start_date, gitLocal, heads):
     '''
     repo_path should be the full _sdc_repository path of {org}/{project}/_git/{repo}
     '''
@@ -664,7 +590,10 @@ def get_all_commit_files(schemas, org, repo_path, state, mdata, start_date, gitL
     # Get all of the branch heads to use for querying commits
     #heads = get_all_heads_for_commits(repo_path)
     # TODO: get this from syncing branches, similar to gitlab?
-    heads = gitLocal.getAllHeads(gitLocalRepoPath)
+    localHeads = gitLocal.getAllHeads(gitLocalRepoPath)
+    for k in heads:
+        localHeads[k] = heads[k]
+    heads = localHeads
 
     # Set this here for updating the state when we don't run any queries
     extraction_time = singer.utils.now()
@@ -683,21 +612,23 @@ def get_all_commit_files(schemas, org, repo_path, state, mdata, start_date, gitL
                 logger.info('Processed heads {}/{}, {} bytes'.format(count, len(heads),
                     process.memory_info().rss))
             headSha = heads[headRef]
+
+            # Emit the ref record as well if it's not for a pull request
+            if not ('refs/pull' in headRef):
+                refRecord = {
+                    '_sdc_repository': gitLocalRepoPath,
+                    'ref': headRef,
+                    'sha': headSha
+                }
+                with singer.Transformer() as transformer:
+                    rec = transformer.transform(refRecord, schemas['refs'],
+                        metadata=metadata.to_map(mdata))
+                singer.write_record('refs', rec, time_extracted=extraction_time)
+
             # If the head commit has already been synced, then skip.
             if headSha in fetchedCommits:
                 #logger.info('Head already fetched {} {}'.format(headRef, headSha))
                 continue
-
-            # Emit the ref record as well
-            refRecord = {
-                '_sdc_repository': gitLocalRepoPath,
-                'ref': headRef,
-                'sha': headSha
-            }
-            with singer.Transformer() as transformer:
-                rec = transformer.transform(refRecord, schemas['refs'],
-                    metadata=metadata.to_map(mdata))
-            singer.write_record('refs', rec, time_extracted=extraction_time)
 
             # Maintain a list of parents we are waiting to see
             missingParents = {}
@@ -818,6 +749,29 @@ def get_threads_for_pr(prid, schema, org, repo_path, state, mdata):
         # I'm honestly not sure what the purpose is of this, but it was in the github tap
         return state
 
+
+def get_pull_request_heads(org, repo_path):
+    reposplit = repo_path.split('/')
+    project = reposplit[0]
+    project_repo = reposplit[1]
+    
+    heads = {}
+
+    for response in authed_get_all_pages(
+            'pull_requests',
+            "https://dev.azure.com/{}/{}/_apis/git/repositories/{}/pullrequests?" \
+            "api-version={}&searchCriteria.status=all" \
+            .format(org, project, project_repo, API_VESION),
+            '$top',
+            '$skip',
+            True # No link header to indicate availability of more data
+    ):
+        prs = response.json()['value']
+        for pr in prs:
+            prNumber = pr['pullRequestId']
+            heads['refs/pull/{}/head'.format(prNumber)] = pr['lastMergeSourceCommit']['commitId']
+            heads['refs/pull/{}/merge'.format(prNumber)] = pr['lastMergeCommit']['commitId']
+    return heads
 
 def get_all_pull_requests(schemas, org, repo_path, state, mdata, start_date):
     '''
@@ -1014,8 +968,12 @@ def do_sync(config, state, catalog):
 
                     # sync stream and its sub streams
                     if stream_id == 'commit_files':
+                        heads = get_pull_request_heads(org, repo)
+                        # We don't need to also get open branch heads here becuase those are
+                        # included in the git clone --mirror, though PR heads for merged PRs are
+                        # not included.
                         state = sync_func(stream_schemas, org, repo, state, mdata, start_date,
-                            gitLocal)
+                            gitLocal, heads)
                     else:
                         state = sync_func(stream_schemas, org, repo, state, mdata, start_date)
 
