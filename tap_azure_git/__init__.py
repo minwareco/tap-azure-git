@@ -843,6 +843,8 @@ def get_all_commit_files(schemas, org, repo_path, state, mdata, start_date, gitL
         'fetchedCommits': fetchedCommits
     })
 
+    return state
+
 
 def get_threads_for_pr(prid, schema, org, repo_path, state, mdata):
     '''
