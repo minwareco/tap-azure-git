@@ -7,10 +7,15 @@ from dateutil import parser
 import pytz
 import requests
 import re
+import psutil
+import asyncio
+import gc
 import singer
 import singer.bookmarks as bookmarks
 import singer.metrics as metrics
 import difflib
+
+from .gitlocal import GitLocal
 
 from singer import metadata
 
@@ -597,6 +602,248 @@ def get_all_commits(schema, org, repo_path, state, mdata, start_date):
 
     return state
 
+
+def get_commit_detail_local(commit, gitLocalRepoPath, gitLocal):
+    try:
+        changes = gitLocal.getCommitDiff(gitLocalRepoPath, commit['sha'])
+        commit['files'] = changes
+    except Exception as e:
+        # This generally shouldn't happen since we've already fetched and checked out the head
+        # commit successfully, so it probably indicates some sort of system error. Just let it
+        # bubbl eup for now.
+        raise e
+
+def get_commit_changes(commit, gitLocalRepoPath, gitLocal):
+    get_commit_detail_local(commit, gitLocalRepoPath, gitLocal)
+    commit['_sdc_repository'] = gitLocalRepoPath
+    commit['id'] = '{}/{}'.format(gitLocalRepoPath, commit['sha'])
+    return commit
+
+async def getChangedfilesForCommits(commits, gitLocalRepoPath, gitLocal):
+    coros = []
+    for commit in commits:
+        changesCoro = asyncio.to_thread(get_commit_changes, commit, gitLocalRepoPath, gitLocal)
+        coros.append(changesCoro)
+    results = await asyncio.gather(*coros)
+    return results
+
+def get_all_heads_for_commits(repo_path):
+    # TODO: implement this for like we did for gitlab
+    '''
+    Gets a list of all SHAs to use as heads for importing lists of commits. Includes all branches
+    and PRs (both base and head) as well as the main branch to get all potential starting points.
+
+    default_branch_name = get_repo_metadata(repo_path)['default_branch']
+
+    # If this data has already been populated with get_all_branches, don't duplicate the work.
+    if not repo_path in BRANCH_CACHE:
+        cur_cache = {}
+        BRANCH_CACHE[repo_path] = cur_cache
+        for response in authed_get_all_pages(
+            'branches',
+            'https://api.github.com/repos/{}/branches?per_page=100'.format(repo_path)
+        ):
+            branches = response.json()
+            for branch in branches:
+                isdefault = branch['name'] == default_branch_name
+                cur_cache[branch['name']] = {
+                    'sha': branch['commit']['sha'],
+                    'isdefault': isdefault,
+                    'name': branch['name']
+                }
+
+    if not repo_path in PR_CACHE:
+        cur_cache = {}
+        PR_CACHE[repo_path] = cur_cache
+        for response in authed_get_all_pages(
+            'pull_requests',
+            'https://api.github.com/repos/{}/pulls?per_page=100&state=all'.format(repo_path)
+        ):
+            pull_requests = response.json()
+            for pr in pull_requests:
+                pr_num = pr.get('number')
+                cur_cache[str(pr_num)] = {
+                    'pr_num': str(pr_num),
+                    'base_sha': pr['base']['sha'],
+                    'base_ref': pr['base']['ref'],
+                    'head_sha': pr['head']['sha'],
+                    'head_ref': pr['head']['ref']
+                }
+
+    # Now build a set of all potential heads
+    head_set = {}
+    for key, val in BRANCH_CACHE[repo_path].items():
+        head_set[val['sha']] = 'refs/heads/' + val['name']
+    for key, val in PR_CACHE[repo_path].items():
+        head_set[val['head_sha']] = 'refs/pull/' + val['pr_num'] + '/head'
+        # There could be a PR into a branch that has since been deleted and this is our only record
+        # of its head, so include it
+        head_set[val['base_sha']] = 'refs/heads/' + val['base_ref']
+    return head_set
+    '''
+
+
+def get_all_commit_files(schemas, org, repo_path, state, mdata, start_date, gitLocal):
+    '''
+    repo_path should be the full _sdc_repository path of {org}/{project}/_git/{repo}
+    '''
+    reposplit = repo_path.split('/')
+    project = reposplit[0]
+    project_repo = reposplit[1]
+
+    gitLocalRepoPath = '{}/{}/_git/{}'.format(org, project, project_repo)
+
+    bookmark = get_bookmark(state, repo_path, "commit_files", "since", start_date)
+    if not bookmark:
+        bookmark = '1970-01-01'
+
+    # Get the set of all commits we have fetched previously
+    fetchedCommits = get_bookmark(state, repo_path, "commit_files", "fetchedCommits")
+    if not fetchedCommits:
+        fetchedCommits = {}
+    else:
+        # We have run previously, so we don't want to use the time-based bookmark becuase it could
+        # skip commits that are pushed after they are committed. So, reset the 'since' bookmark back
+        # to the beginning of time and rely solely on the fetchedCommits bookmark.
+        bookmark = '1970-01-01'
+
+    logger.info('Found {} fetched commits in state.'.format(len(fetchedCommits)))
+
+    # We don't want newly fetched commits to update the state if we fail partway through, because
+    # this could lead to commits getting marked as fetched when their parents are never fetched. So,
+    # copy the dict.
+    fetchedCommits = fetchedCommits.copy()
+
+    # Get all of the branch heads to use for querying commits
+    #heads = get_all_heads_for_commits(repo_path)
+    # TODO: get this from syncing branches, similar to gitlab?
+    heads = gitLocal.getAllHeads(gitLocalRepoPath)
+
+    # Set this here for updating the state when we don't run any queries
+    extraction_time = singer.utils.now()
+
+    count = 0
+    # The large majority of PRs are less than this many commits
+    LOG_PAGE_SIZE = 10000
+    with metrics.record_counter('commit_files') as counter:
+        # First, walk through all the heads and queue up all the commits that need to be imported
+        commitQ = []
+
+        for headRef in heads:
+            count += 1
+            if count % 10 == 0:
+                process = psutil.Process(os.getpid())
+                logger.info('Processed heads {}/{}, {} bytes'.format(count, len(heads),
+                    process.memory_info().rss))
+            headSha = heads[headRef]
+            # If the head commit has already been synced, then skip.
+            if headSha in fetchedCommits:
+                #logger.info('Head already fetched {} {}'.format(headRef, headSha))
+                continue
+
+            # Emit the ref record as well
+            refRecord = {
+                '_sdc_repository': gitLocalRepoPath,
+                'ref': headRef,
+                'sha': headSha
+            }
+            with singer.Transformer() as transformer:
+                rec = transformer.transform(refRecord, schemas['refs'],
+                    metadata=metadata.to_map(mdata))
+            singer.write_record('refs', rec, time_extracted=extraction_time)
+
+            # Maintain a list of parents we are waiting to see
+            missingParents = {}
+
+            # Verify that this commit exists in our mirrored repo
+            commitHasLocal = gitLocal.hasLocalCommit(gitLocalRepoPath, headSha)
+            if not commitHasLocal:
+                logger.warning('MISSING REF/COMMIT {}/{}/{}'.format(gitLocalRepoPath, headRef,
+                    headSha))
+                # Skip this now that we're mirroring everything. We shouldn't have anything that's
+                # missing from github's API
+                continue
+
+
+            offset = 0
+            while True:
+                commits = gitLocal.getCommitsFromHead(gitLocalRepoPath, headSha, limit = LOG_PAGE_SIZE,
+                    offset = offset)
+
+                extraction_time = singer.utils.now()
+                for commit in commits:
+                    # Skip commits we've already imported
+                    if commit['sha'] in fetchedCommits:
+                        continue
+
+                    commitQ.append(commit)
+
+                    # Record that we have now fetched this commit
+                    fetchedCommits[commit['sha']] = 1
+                    # No longer a missing parent
+                    missingParents.pop(commit['sha'], None)
+
+                    # Keep track of new missing parents
+                    for parent in commit['parents']:
+                        if not parent['sha'] in fetchedCommits:
+                            missingParents[parent['sha']] = 1
+
+                # If there are no missing parents, then we are done prior to reaching the lst page
+                if not missingParents:
+                    break
+                elif len(commits) > 0:
+                    offset += LOG_PAGE_SIZE
+                # Else if we have reached the end of our data but not found the parents, then we have a
+                # problem
+                else:
+                    raise AzureException('Some commit parents never found: ' + \
+                        ','.join(missingParents.keys()))
+                # Otherwise, proceed to fetch the next page with the next iteration state
+
+        # Now run through all the commits in parallel
+        gc.collect()
+        process = psutil.Process(os.getpid())
+        logger.info('Processing {} commits, mem(mb) {}'.format(len(commitQ),
+            process.memory_info().rss / (1024 * 1024)))
+
+        # Run in batches
+        i = 0
+        BATCH_SIZE = 16
+        PRINT_INTERVAL = 16
+        totalCommits = len(commitQ)
+        finishedCount = 0
+
+        while len(commitQ) > 0:
+            # Slice off the queue to avoid memory leaks
+            curQ = commitQ[0:BATCH_SIZE]
+            commitQ = commitQ[BATCH_SIZE:]
+            changedFileList = asyncio.run(getChangedfilesForCommits(curQ, gitLocalRepoPath, gitLocal))
+            for commitfiles in changedFileList:
+                with singer.Transformer() as transformer:
+                    rec = transformer.transform(commitfiles, schemas['commit_files'],
+                        metadata=metadata.to_map(mdata))
+                counter.increment()
+                singer.write_record('commit_files', rec, time_extracted=extraction_time)
+
+            finishedCount += BATCH_SIZE
+            if i % (BATCH_SIZE * PRINT_INTERVAL) == 0:
+                curQ = None
+                changedFileList = None
+                gc.collect()
+                process = psutil.Process(os.getpid())
+                logger.info('Imported {}/{} commits, {}/{} MB'.format(finishedCount, totalCommits,
+                    process.memory_info().rss / (1024 * 1024),
+                    process.memory_info().data / (1024 * 1024)))
+
+
+    # Don't write until the end so that we don't record fetchedCommits if we fail and never get
+    # their parents.
+    singer.write_bookmark(state, repo_path, 'commit_files', {
+        'since': singer.utils.strftime(extraction_time),
+        'fetchedCommits': fetchedCommits
+    })
+
+
 def get_threads_for_pr(prid, schema, org, repo_path, state, mdata):
     '''
     https://docs.microsoft.com/en-us/rest/api/azure/devops/git/pull-request-threads/pull-request-threads-list?view=azure-devops-rest-6.0
@@ -738,11 +985,13 @@ def get_stream_from_catalog(stream_id, catalog):
 
 SYNC_FUNCTIONS = {
     'commits': get_all_commits,
+    'commit_files': get_all_commit_files,
     'pull_requests': get_all_pull_requests,
 }
 
 SUB_STREAMS = {
     'pull_requests': ['pull_request_threads'],
+    'commit_files': ['refs']
 }
 
 def do_sync(config, state, catalog):
@@ -773,6 +1022,13 @@ def do_sync(config, state, catalog):
     repositories = list(filter(None, config['repository'].split(' ')))
 
     singer.write_state(state)
+
+    domain = config['pull_domain'] if 'pull_domain' in config else 'dev.azure.com'
+    gitLocal = GitLocal({
+        'access_token': config['private_token'],
+        'workingDir': '/tmp',
+    }, 'https://{}@' + domain + '/{}', # repo is format: {org}/{project}/_git/{repo}
+        config['hmac_token'] if 'hmac_token' in config else None)
 
     #pylint: disable=too-many-nested-blocks
     for repo in repositories:
@@ -811,7 +1067,11 @@ def do_sync(config, state, catalog):
                                                 sub_stream['key_properties'])
 
                     # sync stream and its sub streams
-                    state = sync_func(stream_schemas, org, repo, state, mdata, start_date)
+                    if stream_id == 'commit_files':
+                        state = sync_func(stream_schemas, org, repo, state, mdata, start_date,
+                            gitLocal)
+                    else:
+                        state = sync_func(stream_schemas, org, repo, state, mdata, start_date)
 
                 singer.write_state(state)
 
