@@ -13,16 +13,6 @@
       "$ref": "ChangeCountDictionary",
       "description": "Counts of the types of changes (edits, deletes, etc.) included with the commit."
     },
-    "changes": {
-      "type": [
-        "null",
-        "array"
-      ],
-      "items": {
-        "$ref": "GitChange"
-      },
-      "description": "An enumeration of the changes included with the commit."
-    },
     "comment": {
       "type": ["null", "string"],
       "description": "Comment or message of the commit."
@@ -228,90 +218,6 @@
             "string"
           ],
           "description": "This url is the full route to the source resource of this graph subject."
-        }
-      }
-    },
-    "GitChange": {
-      "type": ["null", "object"],
-      "properties": {
-        "changeType": {
-          "type": [
-            "null",
-            "string"
-          ],
-          "description": "The type of change that was made to the item."
-        },
-        "sourceServerItem": {
-          "type": [
-            "null",
-            "string"
-          ],
-          "description": "The original path to the item if it has changed."
-        },
-        "item": {
-          "type": ["null", "object"],
-          "properties": {
-            "objectId": {
-              "type": [
-                "null",
-                "string"
-              ]
-            },
-            "originalObjectId": {
-              "type": [
-                "null",
-                "string"
-              ]
-            },
-            "gitObjectType": {
-              "type": [
-                "null",
-                "string"
-              ]
-            },
-            "path": {
-              "type": [
-                "null",
-                "string"
-              ]
-            },
-            "isFolder": {
-              "type": [
-                "null",
-                "boolean"
-              ]
-            },
-            "commitId": {
-              "type": [
-                "null",
-                "string"
-              ]
-            },
-            "url": {
-              "type": [
-                "null",
-                "string"
-              ]
-            },
-            "patch": {
-              "type": [
-                "null",
-                "string"
-              ]
-            },
-            "isBinary": {
-              "type": [
-                "null",
-                "boolean"
-              ]
-            },
-            "isLargeFile": {
-              "type": [
-                "null",
-                "boolean"
-              ]
-            }
-          }
         }
       }
     },
