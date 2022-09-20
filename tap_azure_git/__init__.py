@@ -28,6 +28,8 @@ KEY_PROPERTIES = {
     'commits': ['commitId'], # This is the SHA
     'pull_requests': ['artifactId'],
     'pull_request_threads': ['id'],
+    'refs': ['ref'],
+    'commit_files': ['id'],
 }
 
 API_VESION = "6.0"
@@ -453,63 +455,9 @@ def write_commit_detail(org, project, project_repo, commit, schema, mdata, extra
         detail_json = commit_detail.json()
         commit['parents'] = detail_json['parents']
 
-    # TODO: include the first 100 changes in the request above and don't make the
-    # additional changes request unless it's necessary. This will speed things up and
-    # reduce the number of requests.
+    # We no longer want to fetch changes here and instead will do it with GitLocal
 
-    # Augment each commit with file-level change data by querying the changes endpoint.
-    commit['changes'] = []
-    for commit_change_detail in authed_get_all_pages(
-        'commits/changes',
-        "https://dev.azure.com/{}/{}/_apis/git/repositories/{}/commits/{}/changes?" \
-        "api-version={}" \
-        .format(org, project, project_repo, commit['commitId'], API_VESION),
-        'top',
-        'skip'
-    ):
-        detail_json = commit_change_detail.json()
-        commit['changes'].extend(detail_json['changes'])
-
-    # Go through each change and fetch the blobs before/after to produce patches
-    for commit_change in commit['changes']:
-        commit_change_item = commit_change['item']
-        # We can skip directories, etc.
-        if commit_change_item['gitObjectType'] != 'blob':
-            continue
-
-        commit_change_item['isBinary'] = False
-        commit_change_item['isLargeFile'] = False
-
-        oldContent = b''
-        if 'originalObjectId' in commit_change_item and commit_change_item['originalObjectId'] != '':
-            oldContent = fetch_blob(org, project, project_repo, commit_change_item['originalObjectId'])
-
-        newContent = b''
-        if 'objectId' in commit_change_item and commit_change_item['objectId'] != '':
-            newContent = fetch_blob(org, project, project_repo, commit_change_item['objectId'])
-
-        try:
-            # Null characters can decode successfully, so check for these explicitly and raise
-            # decode errors to ensure that they are interpreted as binary
-            if b'\x00' in oldContent:
-                raise UnicodeDecodeError('utf-8', oldContent, 0, 0, 'Null byte found')
-            if b'\x00' in newContent:
-                raise UnicodeDecodeError('utf-8', newContent, 0, 0, 'Null byte found')
-
-            oldstr = oldContent.decode("utf-8")
-            newstr = newContent.decode("utf-8")
-            patch = create_patch_for_files(oldstr, newstr)
-
-            if len(patch) > LARGE_FILE_DIFF_THRESHOLD:
-                commit_change_item['isLargeFile'] = True
-            else:
-                commit_change_item['patch'] = patch
-
-        except UnicodeDecodeError:
-            # If we can't decode to utf-8, then treat the string as binary
-            commit_change_item['isBinary'] = True
-
-    commit['_sdc_repository'] = "{}/{}".format(project, project_repo)
+    commit['_sdc_repository'] = "{}/{}/_git/{}".format(org, project, project_repo)
     with singer.Transformer() as transformer:
         rec = transformer.transform(commit, schema, metadata=metadata.to_map(mdata))
     singer.write_record('commits', rec, time_extracted=extraction_time)
@@ -1020,7 +968,6 @@ def do_sync(config, state, catalog):
 
     repositories = list(filter(None, config['repository'].split(' ')))
 
-    singer.write_state(state)
 
     domain = config['pull_domain'] if 'pull_domain' in config else 'dev.azure.com'
     gitLocal = GitLocal({
@@ -1072,7 +1019,8 @@ def do_sync(config, state, catalog):
                     else:
                         state = sync_func(stream_schemas, org, repo, state, mdata, start_date)
 
-                singer.write_state(state)
+    # The state can get big, don't write it until the end
+    singer.write_state(state)
 
 @singer.utils.handle_top_exception(logger)
 def main():
