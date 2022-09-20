@@ -682,7 +682,6 @@ def get_all_heads_for_commits(repo_path):
     return head_set
     '''
 
-
 def get_all_commit_files(schemas, org, repo_path, state, mdata, start_date, gitLocal):
     '''
     repo_path should be the full _sdc_repository path of {org}/{project}/_git/{repo}
