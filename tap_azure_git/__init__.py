@@ -30,6 +30,7 @@ KEY_PROPERTIES = {
     'pull_request_threads': ['id'],
     'refs': ['ref'],
     'commit_files': ['id'],
+    'repositories': ['id'],
 }
 
 API_VESION = "6.0"
@@ -860,6 +861,44 @@ def get_all_pull_requests(schemas, org, repo_path, state, mdata, start_date):
 
     return state
 
+def get_all_repositories(schema, org, repo_path, state, mdata, start_date):
+    # Don't bookmark this one for now
+    
+    with metrics.record_counter('pull_requests') as counter:
+        extraction_time = singer.utils.now()
+
+        for response in authed_get_all_pages(
+            'projects',
+            "https://dev.azure.com/{}/_apis/projects?" \
+            "api-version={}" \
+            .format(org, API_VESION),
+            '$top',
+            '$skip',
+            True # No link header to indicate availability of more data
+        ):
+            projects = response.json()['value']
+            for project in projects:
+                projectName = project['name']
+                for response in authed_get_all_pages(
+                    'repositories',
+                    "https://dev.azure.com/{}/{}/_apis/git/repositories?" \
+                    "api-version={}" \
+                    .format(org, projectName, API_VESION),
+                    '$top',
+                    '$skip',
+                    True # No link header to indicate availability of more data
+                ):
+                    repos = response.json()['value']
+                    for repo in repos:
+                        repoName = repo['name']
+                        repo['_sdc_repository'] = '{}/{}/_git/{}'.format(org, projectName, repoName)
+                        
+                        with singer.Transformer() as transformer:
+                            rec = transformer.transform(repo, schema,
+                                metadata=metadata.to_map(mdata))
+                        singer.write_record('repositories', rec, time_extracted=extraction_time)
+                        counter.increment()
+    return state
 
 def get_selected_streams(catalog):
     '''
@@ -890,6 +929,7 @@ SYNC_FUNCTIONS = {
     'commits': get_all_commits,
     'commit_files': get_all_commit_files,
     'pull_requests': get_all_pull_requests,
+    'repositories': get_all_repositories,
 }
 
 SUB_STREAMS = {
@@ -915,6 +955,8 @@ def do_sync(config, state, catalog):
       }
     }
     '''
+    process_globals = config['process_globals'] if 'process_globals' in config else True
+
     start_date = config['start_date'] if 'start_date' in config else None
     # get selected streams, make sure stream dependencies are met
     selected_stream_ids = get_selected_streams(catalog)
@@ -932,6 +974,7 @@ def do_sync(config, state, catalog):
     }, 'https://{}@' + domain + '/{}', # repo is format: {org}/{project}/_git/{repo}
         config['hmac_token'] if 'hmac_token' in config else None)
 
+    processed_repositories = False
     #pylint: disable=too-many-nested-blocks
     for repo in repositories:
         logger.info("Starting sync of repository: %s", repo)
@@ -939,6 +982,12 @@ def do_sync(config, state, catalog):
             stream_id = stream['tap_stream_id']
             stream_schema = stream['schema']
             mdata = stream['metadata']
+
+            if stream_id == 'repositories':
+                # Only load this once, and only if process_globals is set to true
+                if processed_repositories or not process_globals:
+                    continue
+                processed_repositories = True
 
             # if it is a "sub_stream", it will be sync'd by its parent
             if not SYNC_FUNCTIONS.get(stream_id):
