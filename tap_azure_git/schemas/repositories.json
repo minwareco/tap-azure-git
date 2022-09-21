@@ -1,0 +1,43 @@
+{
+  "type": ["null", "object"],
+  "properties": {
+    "_sdc_repository": {
+      "type": ["string"],
+      "description": "Unique string identifying the repository in the format {org}/{project}/_git/{repository}"
+    },
+    "id": {
+      "type": ["null", "string"],
+      "description": "UUID of the repository"
+    },
+    "name": {
+      "type": ["null", "string"],
+      "description": "Name of the repository"
+    },
+    "defaultBranch": {
+      "type": ["null", "string"],
+      "description": "Default branch of the repository, starts with 'refs/heads'"
+    },
+    "isDisabled": {
+      "type": ["null", "boolean"],
+      "description": "Is the repository disabled?"
+    },
+    "project": {
+      "type": ["null", "object"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": ["null", "string"],
+          "description": "UUID of the project"
+        },
+        "name": {
+          "type": ["null", "string"],
+          "description": "Name of the project"
+        },
+        "visibility": {
+          "type": ["null", "string"],
+          "description": "Visibility of the project, one of: public, private"
+        }
+      }
+    }
+  }
+}
