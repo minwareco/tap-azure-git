@@ -743,7 +743,7 @@ def get_threads_for_pr(prid, schema, org, repo_path, state, mdata):
     ):
         threads = response.json()
         for thread in threads['value']:
-            thread['_sdc_repository'] = repo_path
+            thread['_sdc_repository'] = "{}/{}/_git/{}".format(org, project, project_repo)
             thread['_sdc_pullRequestId'] = prid
             with singer.Transformer() as transformer:
                 rec = transformer.transform(thread, schema, metadata=metadata.to_map(mdata))
@@ -832,7 +832,7 @@ def get_all_pull_requests(schemas, org, repo_path, state, mdata, start_date):
 
                 # Write out the pull request info
 
-                pr['_sdc_repository'] = repo_path
+                pr['_sdc_repository'] = "{}/{}/_git/{}".format(org, project, project_repo)
 
                 # So pullRequestId isn't actually unique. There is a 'artifactId' parameter that is
                 # unique, but, surprise surprise, the API doesn't actually include this property
