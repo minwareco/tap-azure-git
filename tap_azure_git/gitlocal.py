@@ -2,10 +2,7 @@
 # https://minware.atlassian.net/browse/MW-258
 
 import subprocess
-import sys
 import os
-import re
-import json
 import singer
 import hashlib
 
@@ -41,8 +38,15 @@ def hashPatchLine(patchLine, hmacToken = None):
     else:
       return '@@'.join([header, ' ' + computeHmac(context[1:], hmacToken)])
   else:
+    if patchLine == '' or \
+        patchLine == '+' or \
+        patchLine == '-' or \
+        patchLine == '+ ' or \
+        patchLine == '- ' or \
+        '\\ No newline at end of file' in patchLine:
+      return patchLine
     prefix = ''
-    if patchLine[0] == '+' or patchLine[0] == '-':
+    if patchLine[0] == '+' or patchLine[0] == '-' or patchLine[0] == ' ':
       prefix = patchLine[0]
       patchLine = patchLine[1:]
     return ''.join([prefix, computeHmac(patchLine, hmacToken)])
