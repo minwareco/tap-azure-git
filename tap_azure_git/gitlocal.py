@@ -38,11 +38,18 @@ def hashPatchLine(patchLine, hmacToken = None):
     else:
       return '@@'.join([header, ' ' + computeHmac(context[1:], hmacToken)])
   else:
+    if patchLine == '' or \
+        patchLine == '+' or \
+        patchLine == '-' or \
+        patchLine == '+ ' or \
+        patchLine == '- ' or \
+        patchLine == '\ No newline at end of file':
+      return patchLine
     prefix = ''
-    if patchLine[0] == '+' or patchLine[0] == '-':
+    if patchLine[0] == '+' or patchLine[0] == '-' or patchLine[0] == ' ':
       prefix = patchLine[0]
       patchLine = patchLine[1:]
-    return ''.join([prefix, computeHmac(patchLine, hmacToken) if len(patchLine) > 0 else ''])
+    return ''.join([prefix, computeHmac(patchLine, hmacToken)])
 
 
 def parseDiffLines(lines, shouldEncrypt=False, hmacToken=None):
