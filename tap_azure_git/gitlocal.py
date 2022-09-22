@@ -2,10 +2,7 @@
 # https://minware.atlassian.net/browse/MW-258
 
 import subprocess
-import sys
 import os
-import re
-import json
 import singer
 import hashlib
 
@@ -45,7 +42,7 @@ def hashPatchLine(patchLine, hmacToken = None):
     if patchLine[0] == '+' or patchLine[0] == '-':
       prefix = patchLine[0]
       patchLine = patchLine[1:]
-    return ''.join([prefix, computeHmac(patchLine, hmacToken)])
+    return ''.join([prefix, computeHmac(patchLine, hmacToken) if len(patchLine) > 0 else ''])
 
 
 def parseDiffLines(lines, shouldEncrypt=False, hmacToken=None):
