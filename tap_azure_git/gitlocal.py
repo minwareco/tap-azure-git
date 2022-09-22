@@ -43,7 +43,7 @@ def hashPatchLine(patchLine, hmacToken = None):
         patchLine == '-' or \
         patchLine == '+ ' or \
         patchLine == '- ' or \
-        patchLine == '\ No newline at end of file':
+        '\\ No newline at end of file' in patchLine:
       return patchLine
     prefix = ''
     if patchLine[0] == '+' or patchLine[0] == '-' or patchLine[0] == ' ':
