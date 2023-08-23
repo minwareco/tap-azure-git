@@ -1,43 +1,113 @@
 {
-  "type": ["null", "object"],
+  "type": [
+    "null",
+    "object"
+  ],
   "properties": {
     "_sdc_repository": {
-      "type": ["string"],
-      "description": "Unique string identifying the repository in the format {org}/{project}/_git/{repository}"
+      "type": [
+        "string"
+      ],
+      "description": "Unique string identifying the repository in the format {org}/{project}/{repository}"
     },
     "id": {
-      "type": ["null", "string"],
+      "type": [
+        "null",
+        "string"
+      ],
       "description": "UUID of the repository"
     },
     "name": {
-      "type": ["null", "string"],
+      "type": [
+        "null",
+        "string"
+      ],
       "description": "Name of the repository"
     },
-    "defaultBranch": {
-      "type": ["null", "string"],
-      "description": "Default branch of the repository, starts with 'refs/heads'"
-    },
     "isDisabled": {
-      "type": ["null", "boolean"],
+      "type": [
+        "null",
+        "boolean"
+      ],
       "description": "Is the repository disabled?"
     },
     "project": {
-      "type": ["null", "object"],
+      "type": [
+        "null",
+        "object"
+      ],
       "additionalProperties": false,
       "properties": {
         "id": {
-          "type": ["null", "string"],
+          "type": [
+            "null",
+            "string"
+          ],
           "description": "UUID of the project"
         },
         "name": {
-          "type": ["null", "string"],
+          "type": [
+            "null",
+            "string"
+          ],
           "description": "Name of the project"
         },
         "visibility": {
-          "type": ["null", "string"],
+          "type": [
+            "null",
+            "string"
+          ],
           "description": "Visibility of the project, one of: public, private"
         }
       }
+    },
+    "source": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "org_name": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "repo_name": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "is_source_public": {
+      "type": [
+        "null",
+        "boolean"
+      ]
+    },
+    "description": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "fork_org_name": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "fork_repo_name": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "default_branch": {
+      "type": [
+        "null",
+        "string"
+      ]
     }
   }
 }

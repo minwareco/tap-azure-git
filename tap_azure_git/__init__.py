@@ -384,7 +384,7 @@ def write_commit_detail(org, project, project_repo, commit, schema, mdata, extra
 
     # We no longer want to fetch changes here and instead will do it with GitLocal
 
-    commit['_sdc_repository'] = "{}/{}/_git/{}".format(org, project, project_repo)
+    commit['_sdc_repository'] = "{}/{}/{}".format(org, project, project_repo)
     with singer.Transformer() as transformer:
         rec = transformer.transform(commit, schema, metadata=metadata.to_map(mdata))
     singer.write_record('commits', rec, time_extracted=extraction_time)
@@ -559,12 +559,13 @@ def get_all_heads_for_commits(repo_path):
 
 def get_all_commit_files(schemas, org, repo_path, state, mdata, start_date, gitLocal, heads):
     '''
-    repo_path should be the full _sdc_repository path of {org}/{project}/_git/{repo}
+    repo_path should be the full _sdc_repository path of {org}/{project}/{repo}
     '''
     reposplit = repo_path.split('/')
     project = reposplit[0]
     project_repo = reposplit[1]
 
+    sdcRepository = '{}/{}/{}'.format(org, project, project_repo)
     gitLocalRepoPath = '{}/{}/_git/{}'.format(org, project, project_repo)
 
     bookmark = get_bookmark(state, repo_path, "commit_files", "since", start_date)
@@ -617,7 +618,7 @@ def get_all_commit_files(schemas, org, repo_path, state, mdata, start_date, gitL
             # Emit the ref record as well if it's not for a pull request
             if not ('refs/pull' in headRef):
                 refRecord = {
-                    '_sdc_repository': gitLocalRepoPath,
+                    '_sdc_repository': sdcRepository,
                     'ref': headRef,
                     'sha': headSha
                 }
@@ -743,7 +744,7 @@ def get_threads_for_pr(prid, schema, org, repo_path, state, mdata):
     ):
         threads = response.json()
         for thread in threads['value']:
-            thread['_sdc_repository'] = "{}/{}/_git/{}".format(org, project, project_repo)
+            thread['_sdc_repository'] = "{}/{}/{}".format(org, project, project_repo)
             thread['_sdc_pullRequestId'] = prid
             with singer.Transformer() as transformer:
                 rec = transformer.transform(thread, schema, metadata=metadata.to_map(mdata))
@@ -773,7 +774,8 @@ def get_pull_request_heads(org, repo_path):
         for pr in prs:
             prNumber = pr['pullRequestId']
             heads['refs/pull/{}/head'.format(prNumber)] = pr['lastMergeSourceCommit']['commitId']
-            heads['refs/pull/{}/merge'.format(prNumber)] = pr['lastMergeCommit']['commitId']
+            if 'lastMergeCommit' in pr:
+                heads['refs/pull/{}/merge'.format(prNumber)] = pr['lastMergeCommit']['commitId']
     return heads
 
 def get_all_pull_requests(schemas, org, repo_path, state, mdata, start_date):
@@ -832,7 +834,7 @@ def get_all_pull_requests(schemas, org, repo_path, state, mdata, start_date):
 
                 # Write out the pull request info
 
-                pr['_sdc_repository'] = "{}/{}/_git/{}".format(org, project, project_repo)
+                pr['_sdc_repository'] = "{}/{}/{}".format(org, project, project_repo)
 
                 # So pullRequestId isn't actually unique. There is a 'artifactId' parameter that is
                 # unique, but, surprise surprise, the API doesn't actually include this property
@@ -891,8 +893,17 @@ def get_all_repositories(schema, org, repo_path, state, mdata, start_date):
                     repos = response.json()['value']
                     for repo in repos:
                         repoName = repo['name']
-                        repo['_sdc_repository'] = '{}/{}/_git/{}'.format(org, projectName, repoName)
-                        
+                        repo['_sdc_repository'] = '{}/{}/{}'.format(org, projectName, repoName)
+                        repo['id'] = '{}/{}/{}/{}'.format('azure-git', org, projectName, repoName)
+                        repo['source'] = 'azure-git'
+                        repo['org_name'] = org
+                        repo['repo_name'] = '{}/{}'.format(projectName, repoName)
+                        repo['is_source_public'] = repo['project']['visibility'] == 'public'
+                        # TODO: handle forks
+                        repo['fork_org_name'] = None
+                        repo['fork_repo_name'] = None
+                        repo['description'] = ''
+
                         with singer.Transformer() as transformer:
                             rec = transformer.transform(repo, schema,
                                 metadata=metadata.to_map(mdata))
@@ -971,7 +982,7 @@ def do_sync(config, state, catalog):
     gitLocal = GitLocal({
         'access_token': config['access_token'],
         'workingDir': '/tmp',
-    }, 'https://{}@' + domain + '/{}', # repo is format: {org}/{project}/_git/{repo}
+    }, 'https://{}@' + domain + '/{}', # repo is format: {org}/{project}/{repo}
         config['hmac_token'] if 'hmac_token' in config else None)
 
     processed_repositories = False
