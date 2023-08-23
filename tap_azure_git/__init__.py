@@ -899,6 +899,7 @@ def get_all_repositories(schema, org, repo_path, state, mdata, start_date):
                         repo['org_name'] = org
                         repo['repo_name'] = '{}/{}'.format(projectName, repoName)
                         repo['is_source_public'] = repo['project']['visibility'] == 'public'
+                        repo['default_branch'] = repo['defaultBranch']
                         # TODO: handle forks
                         repo['fork_org_name'] = None
                         repo['fork_repo_name'] = None
