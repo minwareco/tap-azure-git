@@ -488,16 +488,16 @@ def get_commit_detail_local(commit, gitLocalRepoPath, gitLocal):
         # bubbl eup for now.
         raise e
 
-def get_commit_changes(commit, gitLocalRepoPath, gitLocal):
+def get_commit_changes(commit, sdcRepository, gitLocalRepoPath, gitLocal):
     get_commit_detail_local(commit, gitLocalRepoPath, gitLocal)
-    commit['_sdc_repository'] = gitLocalRepoPath
-    commit['id'] = '{}/{}'.format(gitLocalRepoPath, commit['sha'])
+    commit['_sdc_repository'] = sdcRepository
+    commit['id'] = '{}/{}'.format(sdcRepository, commit['sha'])
     return commit
 
-async def getChangedfilesForCommits(commits, gitLocalRepoPath, gitLocal):
+async def getChangedfilesForCommits(commits, sdcRepository, gitLocalRepoPath, gitLocal):
     coros = []
     for commit in commits:
-        changesCoro = asyncio.to_thread(get_commit_changes, commit, gitLocalRepoPath, gitLocal)
+        changesCoro = asyncio.to_thread(get_commit_changes, commit, sdcRepository, gitLocalRepoPath, gitLocal)
         coros.append(changesCoro)
     results = await asyncio.gather(*coros)
     return results
@@ -697,7 +697,7 @@ def get_all_commit_files(schemas, org, repo_path, state, mdata, start_date, gitL
             # Slice off the queue to avoid memory leaks
             curQ = commitQ[0:BATCH_SIZE]
             commitQ = commitQ[BATCH_SIZE:]
-            changedFileList = asyncio.run(getChangedfilesForCommits(curQ, gitLocalRepoPath, gitLocal))
+            changedFileList = asyncio.run(getChangedfilesForCommits(curQ, sdcRepository, gitLocalRepoPath, gitLocal))
             for commitfiles in changedFileList:
                 with singer.Transformer() as transformer:
                     rec = transformer.transform(commitfiles, schemas['commit_files'],
