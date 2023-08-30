@@ -866,7 +866,7 @@ def get_all_pull_requests(schemas, org, repo_path, state, mdata, start_date):
 def get_all_repositories(schema, org, repo_path, state, mdata, start_date):
     # Don't bookmark this one for now
     
-    with metrics.record_counter('pull_requests') as counter:
+    with metrics.record_counter('repositories') as counter:
         extraction_time = singer.utils.now()
 
         for response in authed_get_all_pages(
@@ -893,13 +893,16 @@ def get_all_repositories(schema, org, repo_path, state, mdata, start_date):
                     repos = response.json()['value']
                     for repo in repos:
                         repoName = repo['name']
+                        if repo_path != '*/*' and repo_path != '' and '{}/{}'.format(projectName, repoName) != repo_path:
+                            continue
+
                         repo['_sdc_repository'] = '{}/{}/{}'.format(org, projectName, repoName)
                         repo['id'] = '{}/{}/{}/{}'.format('azure-git', org, projectName, repoName)
                         repo['source'] = 'azure-git'
                         repo['org_name'] = org
                         repo['repo_name'] = '{}/{}'.format(projectName, repoName)
                         repo['is_source_public'] = repo['project']['visibility'] == 'public'
-                        repo['default_branch'] = repo['defaultBranch']
+                        repo['default_branch'] = repo['defaultBranch'] if 'defaultBranch' in repo else ""
                         # TODO: handle forks
                         repo['fork_org_name'] = None
                         repo['fork_repo_name'] = None
