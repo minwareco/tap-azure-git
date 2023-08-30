@@ -124,6 +124,8 @@ ERROR_CODE_EXCEPTION_MAPPING = {
     },
 }
 
+process_globals = True
+
 def get_bookmark(state, repo, stream_name, bookmark_key, default_value=None):
     repo_stream_dict = bookmarks.get_bookmark(state, repo, stream_name)
     if repo_stream_dict:
@@ -893,8 +895,9 @@ def get_all_repositories(schema, org, repo_path, state, mdata, start_date):
                     repos = response.json()['value']
                     for repo in repos:
                         repoName = repo['name']
-                        if repo_path != '*/*' and repo_path != '' and '{}/{}'.format(projectName, repoName) != repo_path:
-                            continue
+                        if not process_globals:
+                            if repo_path != '*/*' and repo_path != '' and '{}/{}'.format(projectName, repoName) != repo_path:
+                                continue
 
                         repo['_sdc_repository'] = '{}/{}/{}'.format(org, projectName, repoName)
                         repo['id'] = '{}/{}/{}/{}'.format('azure-git', org, projectName, repoName)
@@ -953,6 +956,7 @@ SUB_STREAMS = {
 }
 
 def do_sync(config, state, catalog):
+    global process_globals
     '''
     The state structure will be the following:
     {
@@ -1000,7 +1004,7 @@ def do_sync(config, state, catalog):
 
             if stream_id == 'repositories':
                 # Only load this once, and only if process_globals is set to true
-                if processed_repositories or not process_globals:
+                if processed_repositories:
                     continue
                 processed_repositories = True
 
