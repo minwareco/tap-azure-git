@@ -15,7 +15,7 @@ import singer.bookmarks as bookmarks
 import singer.metrics as metrics
 import difflib
 
-from .gitlocal import GitLocal
+from gitlocal import GitLocal
 
 from singer import metadata
 
@@ -991,7 +991,8 @@ def do_sync(config, state, catalog):
         'access_token': config['access_token'],
         'workingDir': '/tmp',
     }, 'https://{}@' + domain + '/{}', # repo is format: {org}/{project}/{repo}
-        config['hmac_token'] if 'hmac_token' in config else None)
+        config['hmac_token'] if 'hmac_token' in config else None,
+        logger=logger.getChild('GitLocal'))
 
     processed_repositories = False
     #pylint: disable=too-many-nested-blocks
