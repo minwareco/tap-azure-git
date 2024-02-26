@@ -899,6 +899,10 @@ def get_all_repositories(schema, org, repo_path, state, mdata, start_date):
                             if repo_path != '*/*' and repo_path != '' and '{}/{}'.format(projectName, repoName) != repo_path:
                                 continue
 
+                        # repos that are disabled do not have code access
+                        if repo['isDisabled']:
+                            continue
+
                         repo['_sdc_repository'] = '{}/{}/{}'.format(org, projectName, repoName)
                         repo['id'] = '{}/{}/{}/{}'.format('azure-git', org, projectName, repoName)
                         repo['source'] = 'azure-git'
