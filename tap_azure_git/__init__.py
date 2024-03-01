@@ -987,7 +987,7 @@ def do_sync(config, state, catalog):
 
     org = config['org']
 
-    repositories = list(filter(None, config['repository'].split(' ')))
+    repositories = [config['repository']] if isinstance(config['repository'], str) else config['repository']
 
 
     domain = config['pull_domain'] if 'pull_domain' in config else 'dev.azure.com'
