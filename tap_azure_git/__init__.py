@@ -14,6 +14,7 @@ import singer
 import singer.bookmarks as bookmarks
 import singer.metrics as metrics
 import difflib
+import urllib.parse
 
 from gitlocal import GitLocal
 
@@ -568,7 +569,7 @@ def get_all_commit_files(schemas, org, repo_path, state, mdata, start_date, gitL
     project_repo = reposplit[1]
 
     sdcRepository = '{}/{}/{}'.format(org, project, project_repo)
-    gitLocalRepoPath = '{}/{}/_git/{}'.format(org, project, project_repo)
+    gitLocalRepoPath = urllib.parse.quote('{}/{}/_git/{}'.format(org, project, project_repo))
 
     bookmark = get_bookmark(state, repo_path, "commit_files", "since", start_date)
     if not bookmark:
