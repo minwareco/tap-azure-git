@@ -11,6 +11,11 @@
     "sha": {
       "type": ["null", "string"],
       "description": "The ref's commit hash"
+    },
+    "type": {
+      "type": ["null", "string"],
+      "enum": ["commit", "tag"],
+      "description": "The type of object this ref points to"
     }
   }
 }

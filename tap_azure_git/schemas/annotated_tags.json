@@ -1,0 +1,78 @@
+{
+  "type": [
+    "null",
+    "object"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "_sdc_repository": {
+      "type": [
+        "string"
+      ]
+    },
+    "tagger": {
+      "$ref": "GitUserDate",
+      "description": "Author of the tag."
+    },
+    "message": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "description": "message of the annotated tag."
+    },
+    "name": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "tagId": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "description": "ID (SHA-1) of the tag."
+    },
+    "commitId": {
+      "type": [
+        "null",
+        "string"
+      ],
+      "description": "ID (SHA-1) of the commit this tag points to."
+    }
+  },
+  "definitions": {
+    "GitUserDate": {
+      "type": [
+        "null",
+        "object"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "date": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "format": "date-time",
+          "description": "Date of the Git operation."
+        },
+        "email": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Email address of the user performing the Git operation."
+        },
+        "name": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "description": "Name of the user performing the Git operation."
+        }
+      }
+    }
+  }
+}
