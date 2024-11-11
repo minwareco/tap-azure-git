@@ -15,6 +15,7 @@ import singer.bookmarks as bookmarks
 import singer.metrics as metrics
 import difflib
 import urllib.parse
+from operator import itemgetter
 
 from gitlocal import GitLocal
 
@@ -32,6 +33,7 @@ KEY_PROPERTIES = {
     'refs': ['ref'],
     'commit_files': ['id'],
     'repositories': ['id'],
+    'annotated_tags': ['tagId']
 }
 
 API_VESION = "6.0"
@@ -592,16 +594,57 @@ def get_all_commit_files(schemas, org, repo_path, state, mdata, start_date, gitL
     # copy the dict.
     fetchedCommits = fetchedCommits.copy()
 
-    # Get all of the branch heads to use for querying commits
-    #heads = get_all_heads_for_commits(repo_path)
-    # TODO: get this from syncing branches, similar to gitlab?
-    localHeads = gitLocal.getAllHeads(gitLocalRepoPath)
-    for k in heads:
-        localHeads[k] = heads[k]
-    heads = localHeads
-
     # Set this here for updating the state when we don't run any queries
     extraction_time = singer.utils.now()
+
+    # Get all of the branch heads to use for querying commits
+    #heads = get_all_heads_for_commits(repo_path)
+    localHeads = gitLocal.getReferences(gitLocalRepoPath)
+    headsToCommits = dict()
+
+    with metrics.record_counter('annotated_tags') as counter:
+        for h in localHeads:
+            ref = localHeads[h]
+            if ref['type'] == 'tag':
+                annotated_tag = gitLocal.getAnnotatedTag(gitLocalRepoPath, ref['sha'])
+                headsToCommits[h] = {
+                    'type': 'tag',
+                    'sha': annotated_tag['tagId'],
+                    'commit_sha': annotated_tag['commitId']
+                }
+
+                if 'annotated_tags' in schemas:
+                    annotated_tag_record = {
+                        '_sdc_repository': sdcRepository,
+                        'tagId': annotated_tag['tagId'], 
+                        'message': annotated_tag['message'],
+                        'tagger': {
+                            'name': annotated_tag['tagger']['name'],
+                            'email': annotated_tag['tagger']['email'],
+                            'date': annotated_tag['tagger']['date'].isoformat(),
+                        },
+                        'name': annotated_tag['name'],
+                        'commitId': annotated_tag['commitId'],
+                    }
+                    with singer.Transformer() as transformer:
+                        rec = transformer.transform(annotated_tag_record, schemas['annotated_tags'],
+                            metadata=metadata.to_map(mdata))
+                    counter.increment()
+                    singer.write_record('annotated_tags', rec, time_extracted=extraction_time)
+                
+            else:
+                headsToCommits[h] = {
+                    'type': 'commit',
+                    'sha': ref['sha'],
+                    'commit_sha': ref['sha']
+                }
+
+    for k in heads:
+        headsToCommits[k] = {
+            'type': 'commit',
+            'sha': heads[k],
+            'commit_sha': heads[k]
+        }
 
     count = 0
     # The large majority of PRs are less than this many commits
@@ -610,20 +653,22 @@ def get_all_commit_files(schemas, org, repo_path, state, mdata, start_date, gitL
         # First, walk through all the heads and queue up all the commits that need to be imported
         commitQ = []
 
-        for headRef in heads:
+        for headRef in headsToCommits:
             count += 1
             if count % 10 == 0:
                 process = psutil.Process(os.getpid())
                 logger.info('Processed heads {}/{}, {} bytes'.format(count, len(heads),
                     process.memory_info().rss))
-            headSha = heads[headRef]
+
+            objectType, sha, headSha = itemgetter('type', 'sha', 'commit_sha')(headsToCommits[headRef])
 
             # Emit the ref record as well if it's not for a pull request
             if not ('refs/pull' in headRef):
                 refRecord = {
                     '_sdc_repository': sdcRepository,
                     'ref': headRef,
-                    'sha': headSha
+                    'sha': sha,
+                    'type': objectType
                 }
                 with singer.Transformer() as transformer:
                     rec = transformer.transform(refRecord, schemas['refs'],
@@ -691,8 +736,8 @@ def get_all_commit_files(schemas, org, repo_path, state, mdata, start_date, gitL
 
         # Run in batches
         i = 0
-        BATCH_SIZE = 16
-        PRINT_INTERVAL = 16
+        BATCH_SIZE = 2
+        PRINT_INTERVAL = 8
         totalCommits = len(commitQ)
         finishedCount = 0
 
@@ -957,7 +1002,7 @@ SYNC_FUNCTIONS = {
 
 SUB_STREAMS = {
     'pull_requests': ['pull_request_threads'],
-    'commit_files': ['refs']
+    'commit_files': ['refs', 'annotated_tags']
 }
 
 def do_sync(config, state, catalog):
