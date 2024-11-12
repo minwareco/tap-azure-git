@@ -95,105 +95,7 @@
             "type": "number"
         },
         "definition": {
-            "type": [
-                "null",
-                "object"
-            ],
-            "properties": {
-                "drafts": {
-                    "type": "array",
-                    "items": {}
-                },
-                "id": {
-                    "type": "number"
-                },
-                "name": {
-                    "type": [
-                        "null",
-                        "string"
-                    ]
-                },
-                "path": {
-                    "type": [
-                        "null",
-                        "string"
-                    ]
-                },
-                "project": {
-                    "type": [
-                        "null",
-                        "object"
-                    ],
-                    "properties": {
-                        "id": {
-                            "type": [
-                                "null",
-                                "string"
-                            ]
-                        },
-                        "lastUpdateTime": {
-                            "type": [
-                                "null",
-                                "string"
-                            ]
-                        },
-                        "name": {
-                            "type": [
-                                "null",
-                                "string"
-                            ]
-                        },
-                        "revision": {
-                            "type": "number"
-                        },
-                        "state": {
-                            "type": [
-                                "null",
-                                "string"
-                            ]
-                        },
-                        "url": {
-                            "type": [
-                                "null",
-                                "string"
-                            ]
-                        },
-                        "visibility": {
-                            "type": [
-                                "null",
-                                "string"
-                            ]
-                        }
-                    }
-                },
-                "queueStatus": {
-                    "type": [
-                        "null",
-                        "string"
-                    ]
-                },
-                "revision": {
-                    "type": "number"
-                },
-                "type": {
-                    "type": [
-                        "null",
-                        "string"
-                    ]
-                },
-                "uri": {
-                    "type": [
-                        "null",
-                        "string"
-                    ]
-                },
-                "url": {
-                    "type": [
-                        "null",
-                        "string"
-                    ]
-                }
-            }
+            "$ref": "#/definitions/DefinitionReference"
         },
         "finishTime": {
             "type": [
@@ -388,7 +290,27 @@
                 "null",
                 "object"
             ],
-            "properties": {}
+            "properties": {
+                "item": {
+                    "type": [
+                        "null",
+                        "object"
+                    ],
+                    "additionalProperties": true
+                },
+                "keys": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "values": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
         },
         "queue": {
             "type": [
@@ -682,6 +604,123 @@
                             "warning"
                         ]
                     }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "TeamProjectReference": {
+            "type": [
+                "null",
+                "object"
+            ],
+            "properties": {
+                "id": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                },
+                "lastUpdateTime": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                },
+                "name": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                },
+                "revision": {
+                    "type": "number"
+                },
+                "state": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                },
+                "url": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                },
+                "visibility": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                }
+            }
+        },
+        "DefinitionReference": {
+            "type": [
+                "null",
+                "object"
+            ],
+            "properties": {
+                "drafts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/DefinitionReference"
+                    }
+                },
+                "id": {
+                    "type": "number"
+                },
+                "name": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                },
+                "path": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                },
+                "project": {
+                    "$ref": "#/definitions/TeamProjectReference"
+                },
+                "queueStatus": {
+                    "type": [
+                        "null",
+                        "string"
+                    ],
+                    "enum": [
+                        "disabled",
+                        "enabled",
+                        "paused"
+                    ]
+                },
+                "revision": {
+                    "type": "number"
+                },
+                "type": {
+                    "type": [
+                        "null",
+                        "string"
+                    ],
+                    "enum": [
+                        "build",
+                        "xaml"
+                    ]
+                },
+                "uri": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                },
+                "url": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
                 }
             }
         }

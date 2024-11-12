@@ -6,11 +6,11 @@
       "type": ["string"]
     },
     "author": {
-      "$ref": "GitUserDate",
+      "$ref": "#/definitions/GitUserDate",
       "description": "Author of the commit."
     },
     "changeCounts": {
-      "$ref": "ChangeCountDictionary",
+      "$ref": "#/definitions/ChangeCountDictionary",
       "description": "Counts of the types of changes (edits, deletes, etc.) included with the commit."
     },
     "comment": {
@@ -26,7 +26,7 @@
       "description": "ID (SHA-1) of the commit."
     },
     "committer": {
-      "$ref": "GitUserDate",
+      "$ref": "#/definitions/GitUserDate",
       "description": "Committer of the commit."
     },
     "parents": {
@@ -37,7 +37,7 @@
       "description": "An enumeration of the parent commit IDs for this commit."
     },
     "push": {
-      "$ref": "GitPushRef",
+      "$ref": "#/definitions/GitPushRef",
       "description": "The push associated with this commit."
     },
     "remoteUrl": {
@@ -50,7 +50,7 @@
         "array"
       ],
       "items": {
-        "$ref": "GitStatus"
+        "$ref": "#/definitions/GitStatus"
       },
       "description": "A list of status metadata from services and extensions that may associate additional information to the commit."
     },
@@ -64,7 +64,7 @@
         "array"
       ],
       "items": {
-        "$ref": "ResourceRef"
+        "$ref": "#/definitions/ResourceRef"
       },
       "description": "A list of workitems associated with this commit."
     }
@@ -166,7 +166,7 @@
           ]
         },
         "pushedBy": {
-          "$ref": "IdentifyRef"
+          "$ref": "#/definitions/IdentifyRef"
         },
         "url": {
           "type": [
