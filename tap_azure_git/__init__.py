@@ -27,13 +27,13 @@ logger = singer.get_logger()
 REQUIRED_CONFIG_KEYS = ['start_date', 'user_name', 'access_token', 'org', 'repository']
 
 KEY_PROPERTIES = {
-    'commits': ['commitId'], # This is the SHA
+    'commits': ['id'],
     'pull_requests': ['artifactId'],
     'pull_request_threads': ['id'],
-    'refs': ['ref'],
+    'refs': ['id'],
     'commit_files': ['id'],
     'repositories': ['id'],
-    'annotated_tags': ['tagId']
+    'annotated_tags': ['id']
 }
 
 API_VESION = "6.0"
@@ -615,17 +615,12 @@ def get_all_commit_files(schemas, org, repo_path, state, mdata, start_date, gitL
 
                 if 'annotated_tags' in schemas:
                     annotated_tag_record = {
+                        **annotated_tag,
                         '_sdc_repository': sdcRepository,
-                        'tagId': annotated_tag['tagId'], 
-                        'message': annotated_tag['message'],
-                        'tagger': {
-                            'name': annotated_tag['tagger']['name'],
-                            'email': annotated_tag['tagger']['email'],
-                            'date': annotated_tag['tagger']['date'].isoformat(),
-                        },
-                        'name': annotated_tag['name'],
-                        'commitId': annotated_tag['commitId'],
+                        'id': '{}/{}'.format(repo_path, annotated_tag['tagId'])
                     }
+                    annotated_tag_record['tagger']['date'] = \
+                        annotated_tag_record['tagger']['date'].isoformat()
                     with singer.Transformer() as transformer:
                         rec = transformer.transform(annotated_tag_record, schemas['annotated_tags'],
                             metadata=metadata.to_map(mdata))
@@ -665,6 +660,7 @@ def get_all_commit_files(schemas, org, repo_path, state, mdata, start_date, gitL
             # Emit the ref record as well if it's not for a pull request
             if not ('refs/pull' in headRef):
                 refRecord = {
+                    'id': '{}/{}'.format(repo_path, headRef),
                     '_sdc_repository': sdcRepository,
                     'ref': headRef,
                     'sha': sha,
