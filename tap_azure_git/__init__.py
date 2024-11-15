@@ -388,8 +388,8 @@ def write_commit_detail(org, project, project_repo, commit, schema, mdata, extra
         commit['parents'] = detail_json['parents']
 
     # We no longer want to fetch changes here and instead will do it with GitLocal
-
     commit['_sdc_repository'] = "{}/{}/{}".format(org, project, project_repo)
+    commit['id'] = "{}/{}/{}/{}".format(org, project, project_repo, commit['commitId'])
     with singer.Transformer() as transformer:
         rec = transformer.transform(commit, schema, metadata=metadata.to_map(mdata))
     singer.write_record('commits', rec, time_extracted=extraction_time)
@@ -617,7 +617,7 @@ def get_all_commit_files(schemas, org, repo_path, state, mdata, start_date, gitL
                     annotated_tag_record = {
                         **annotated_tag,
                         '_sdc_repository': sdcRepository,
-                        'id': '{}/{}'.format(repo_path, annotated_tag['tagId'])
+                        'id': '{}/{}'.format(sdcRepository, annotated_tag['tagId'])
                     }
                     annotated_tag_record['tagger']['date'] = \
                         annotated_tag_record['tagger']['date'].isoformat()
@@ -660,7 +660,7 @@ def get_all_commit_files(schemas, org, repo_path, state, mdata, start_date, gitL
             # Emit the ref record as well if it's not for a pull request
             if not ('refs/pull' in headRef):
                 refRecord = {
-                    'id': '{}/{}'.format(repo_path, headRef),
+                    'id': '{}/{}'.format(sdcRepository, headRef),
                     '_sdc_repository': sdcRepository,
                     'ref': headRef,
                     'sha': sha,
