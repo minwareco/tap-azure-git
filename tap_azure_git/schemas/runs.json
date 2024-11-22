@@ -17,7 +17,8 @@
                             "type": [
                                 "null",
                                 "string"
-                            ]
+                            ],
+                            "format": "uri"
                         }
                     }
                 },
@@ -31,7 +32,8 @@
                             "type": [
                                 "null",
                                 "string"
-                            ]
+                            ],
+                            "format": "uri"
                         }
                     }
                 },
@@ -45,7 +47,8 @@
                             "type": [
                                 "null",
                                 "string"
-                            ]
+                            ],
+                            "format": "uri"
                         }
                     }
                 },
@@ -59,7 +62,8 @@
                             "type": [
                                 "null",
                                 "string"
-                            ]
+                            ],
+                            "format": "uri"
                         }
                     }
                 }
@@ -69,13 +73,15 @@
             "type": [
                 "null",
                 "string"
-            ]
+            ],
+            "format": "date-time"
         },
         "finishedDate": {
             "type": [
                 "null",
                 "string"
-            ]
+            ],
+            "format": "date-time"
         },
         "id": {
             "type": "number"
@@ -114,7 +120,8 @@
                     "type": [
                         "null",
                         "string"
-                    ]
+                    ],
+                    "format": "uri"
                 }
             }
         },
@@ -184,12 +191,24 @@
             "type": [
                 "null",
                 "string"
+            ],
+            "enum": [
+                "canceled",
+                "failed",
+                "succeeded",
+                "unknown"
             ]
         },
         "state": {
             "type": [
                 "null",
                 "string"
+            ],
+            "enum": [
+                "canceling",
+                "completed",
+                "inProgress",
+                "unknown"
             ]
         },
         "templateParameters": {
@@ -203,7 +222,8 @@
             "type": [
                 "null",
                 "string"
-            ]
+            ],
+            "format": "uri"
         },
         "yamlDetails": {
             "type": [
@@ -215,7 +235,8 @@
                     "type": [
                         "null",
                         "string"
-                    ]
+                    ],
+                    "format": "uri"
                 },
                 "rootYamlFile": {
                     "type": [

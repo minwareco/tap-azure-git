@@ -5,6 +5,16 @@
     ],
     "additionalProperties": false,
     "properties": {
+        "_sdc_repository": {
+            "type": [
+                "string"
+            ]
+        },
+        "_sdc_id": {
+            "type": [
+                "string"
+            ]
+        },
         "_links": {
             "type": [
                 "null",
