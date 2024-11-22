@@ -10,6 +10,9 @@
         "string"
       ]
     },
+    "id": {
+      "type": ["string"]
+    },
     "tagger": {
       "$ref": "#/definitions/GitUserDate",
       "description": "Author of the tag."

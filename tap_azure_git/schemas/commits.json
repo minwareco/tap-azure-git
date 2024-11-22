@@ -5,6 +5,9 @@
     "_sdc_repository": {
       "type": ["string"]
     },
+    "id": {
+      "type": ["string"]
+    },
     "author": {
       "$ref": "#/definitions/GitUserDate",
       "description": "Author of the commit."
