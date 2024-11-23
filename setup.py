@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+import os
+
 from setuptools import setup, find_packages
 
 setup(name='tap-azure-git',
@@ -19,6 +21,7 @@ setup(name='tap-azure-git',
               'pylint',
               'ipdb',
               'nose',
+              'black==24.3.0',
           ]
       },
       entry_points='''

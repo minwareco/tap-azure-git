@@ -20,7 +20,8 @@
                             "type": [
                                 "null",
                                 "string"
-                            ]
+                            ],
+                            "format": "uri"
                         }
                     }
                 },
@@ -34,7 +35,8 @@
                             "type": [
                                 "null",
                                 "string"
-                            ]
+                            ],
+                            "format": "uri"
                         }
                     }
                 },
@@ -48,7 +50,8 @@
                             "type": [
                                 "null",
                                 "string"
-                            ]
+                            ],
+                            "format": "uri"
                         }
                     }
                 },
@@ -62,7 +65,8 @@
                             "type": [
                                 "null",
                                 "string"
-                            ]
+                            ],
+                            "format": "uri"
                         }
                     }
                 },
@@ -76,7 +80,8 @@
                             "type": [
                                 "null",
                                 "string"
-                            ]
+                            ],
+                            "format": "uri"
                         }
                     }
                 }
@@ -128,7 +133,8 @@
                                     "type": [
                                         "null",
                                         "string"
-                                    ]
+                                    ],
+                                    "format": "uri"
                                 }
                             }
                         }
@@ -156,7 +162,8 @@
                     "type": [
                         "null",
                         "string"
-                    ]
+                    ],
+                    "format": "uri"
                 },
                 "uniqueName": {
                     "type": [
@@ -168,7 +175,8 @@
                     "type": [
                         "null",
                         "string"
-                    ]
+                    ],
+                    "format": "uri"
                 }
             }
         },
@@ -197,7 +205,8 @@
                     "type": [
                         "null",
                         "string"
-                    ]
+                    ],
+                    "format": "uri"
                 }
             }
         },
@@ -275,7 +284,8 @@
                     "type": [
                         "null",
                         "string"
-                    ]
+                    ],
+                    "format": "uri"
                 },
                 "visibility": {
                     "type": [
@@ -407,7 +417,8 @@
                                     "type": [
                                         "null",
                                         "string"
-                                    ]
+                                    ],
+                                    "format": "uri"
                                 }
                             }
                         }
@@ -435,7 +446,8 @@
                     "type": [
                         "null",
                         "string"
-                    ]
+                    ],
+                    "format": "uri"
                 },
                 "uniqueName": {
                     "type": [
@@ -447,7 +459,8 @@
                     "type": [
                         "null",
                         "string"
-                    ]
+                    ],
+                    "format": "uri"
                 }
             }
         },
@@ -473,7 +486,8 @@
                                     "type": [
                                         "null",
                                         "string"
-                                    ]
+                                    ],
+                                    "format": "uri"
                                 }
                             }
                         }
@@ -501,7 +515,8 @@
                     "type": [
                         "null",
                         "string"
-                    ]
+                    ],
+                    "format": "uri"
                 },
                 "uniqueName": {
                     "type": [
@@ -513,7 +528,8 @@
                     "type": [
                         "null",
                         "string"
-                    ]
+                    ],
+                    "format": "uri"
                 }
             }
         },
@@ -577,7 +593,8 @@
             "type": [
                 "null",
                 "string"
-            ]
+            ],
+            "format": "uri"
         },
         "validationResults": {
             "type": "array",
@@ -646,7 +663,8 @@
                     "type": [
                         "null",
                         "string"
-                    ]
+                    ],
+                    "format": "uri"
                 },
                 "visibility": {
                     "type": [
@@ -720,7 +738,8 @@
                     "type": [
                         "null",
                         "string"
-                    ]
+                    ],
+                    "format": "uri"
                 }
             }
         }

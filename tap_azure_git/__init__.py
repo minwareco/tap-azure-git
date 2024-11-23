@@ -1,28 +1,27 @@
+# Standard Library
 import argparse
-import os
-import json
-import collections
-import time
-import pytz
-import requests
-import re
-import psutil
 import asyncio
-import gc
-import singer
-import singer.bookmarks as bookmarks
-import singer.metrics as metrics
-import urllib.parse
+import collections
 import functools
-
+import gc
+import json
+import os
+import re
+import time
+import urllib.parse
 from datetime import datetime
 from operator import itemgetter
 
+# 3rd Party
+import psutil
+import pytz
+import requests
+import singer
+import singer.bookmarks as bookmarks
+import singer.metrics as metrics
 from dateutil import parser
-from singer import metadata
-
 from gitlocal import GitLocal
-
+from singer import metadata
 
 session = requests.Session()
 logger = singer.get_logger()
@@ -990,8 +989,8 @@ def get_all_pipelines(schema, org, repo_path, state, mdata, start_date):
         project = repo_split[0]
         repo_name = repo_split[1]
 
-        repo_id_to_ingest = get_repository(org, project, repo_name)["id"]
-        logger.info(f"Repo id to ingest : {repo_id_to_ingest}")
+        repo_to_ingest = get_repository(org, project, repo_name)
+        repo_id_to_ingest = repo_to_ingest["id"]
 
         # https://learn.microsoft.com/en-us/rest/api/azure/devops/pipelines/pipelines/list?view=azure-devops-rest-7.1
         for response in authed_get_all_pages(
@@ -1097,6 +1096,108 @@ def get_all_pipeline_runs(schema, org, repo_path, pipeline, state, mdata, start_
     
     return state
 
+def is_build_after_time(build, time_to_compare):
+    return 'finishedDate' not in build or \
+        parser.parse(build['finishedDate']) > time_to_compare
+
+def get_build_timeline(schema, org, repo_path, build, state, mdata, start_date):
+    stream_id = 'build_timelines'
+
+    with metrics.record_counter(stream_id) as counter:
+        extraction_time = singer.utils.now()
+
+        repo_split = repo_path.split('/')
+        project = repo_split[0]
+        repo_name = repo_split[1]
+
+        # https://learn.microsoft.com/en-us/rest/api/azure/devops/build/timeline/get?view=azure-devops-rest-7.1
+        build_timeline_response = authed_get(
+            stream_id,
+            "https://dev.azure.com/{}/{}/_apis/build/builds/{}/Timeline?api-version={}" \
+                .format(org, project, build['id'], API_VERSION_7_1)
+        )
+        raw_build_timeline = build_timeline_response.json()
+        sdc_repository = '{}/{}/{}'.format(org, project, repo_name)
+        
+        build_timeline = {
+            **raw_build_timeline,
+            '_sdc_repository': sdc_repository,
+            '_sdc_id': '{}/build/{}/timeline/{}'.format(sdc_repository, build['id'], raw_build_timeline['id'])
+        }
+        logger.info(json.dumps(build_timeline, indent=2))
+        
+        with singer.Transformer() as transformer:
+            rec = transformer.transform(build_timeline, schema, metadata=metadata.to_map(mdata))
+        singer.write_record(stream_id, rec, time_extracted=extraction_time)
+        counter.increment()
+
+    return state
+
+def get_all_builds(schema, org, repo_path, state, mdata, start_date):
+    stream_id = "builds"
+    bookmark_key = "finishedDate"
+
+    bookmark = get_bookmark(state, repo_path, stream_id, bookmark_key, start_date)
+    if not bookmark:
+        bookmark = '1970-01-01T00:00:00Z'
+
+    bookmarkTime = parser.parse(bookmark)
+    if bookmarkTime.tzinfo is None:
+        bookmarkTime = pytz.UTC.localize(bookmarkTime)
+
+    with metrics.record_counter(stream_id) as counter:
+        extraction_time = singer.utils.now()
+
+        repo_split = repo_path.split('/')
+        project = repo_split[0]
+        repo_name = repo_split[1]
+
+        repo_to_ingest = get_repository(org, project, repo_name)
+        repo_id_to_ingest = repo_to_ingest["id"]
+        logger.info(f"Repo to ingest : {json.dumps(repo_to_ingest, indent=2)}")
+
+        # https://learn.microsoft.com/en-us/rest/api/azure/devops/build/builds/list?view=azure-devops-rest-7.1
+        for response in authed_get_all_pages(
+            'builds',
+            'https://dev.azure.com/{}/{}/_apis/build/builds?queryOrder={}&repositoryId={}&repositoryType={}&api-version={}' \
+                .format(org, project, 'finishTimeDescending', repo_id_to_ingest, "TfsGit", API_VERSION_7_1),
+            '$top',
+            'continuationToken'
+        ):
+            builds = response.json()['value']
+            sdc_repository = '{}/{}/{}'.format(org, project, repo_name)
+            builds_to_write = [
+                {
+                    **build,
+                    '_sdc_repository': sdc_repository,
+                    '_sdc_id': '{}/build/{}'.format(sdc_repository, build['id'])
+                }
+                for build in builds
+                if is_build_after_time(build, bookmarkTime)
+            ]
+            
+            with singer.Transformer() as transformer:
+                for build in builds_to_write:
+                    rec = transformer.transform(build, schema,
+                            metadata=metadata.to_map(mdata))
+                    singer.write_record('builds', rec, time_extracted=extraction_time)
+                    counter.increment()
+
+                    logger.info(f'Build : {json.dumps(build, indent=4)}')
+                    
+                    # sync build_timeline substream
+                    state = get_build_timeline(schema, org, repo_path, build, state, mdata, start_date)
+
+            # the API is ordered, as soon as we find an item that finished before our bookmark, stop iterating
+            if len(builds_to_write) < len(builds):
+                break
+    
+        singer.write_bookmark(state, repo_path, stream_id, {
+            bookmark_key: singer.utils.strftime(extraction_time)
+        })
+    
+    return state
+
 def get_selected_streams(catalog):
     '''
     Gets selected streams.  Checks schema's 'selected'
@@ -1127,7 +1228,7 @@ SYNC_FUNCTIONS = {
     'commit_files': get_all_commit_files,
     'pull_requests': get_all_pull_requests,
     'repositories': get_all_repositories,
-    # 'builds': get_all_builds,
+    'builds': get_all_builds,
     'pipelines': get_all_pipelines
 }
 
@@ -1200,7 +1301,7 @@ def do_sync(config, state, catalog):
             if stream_id in selected_stream_ids:
                 singer.write_schema(stream_id, stream_schema, stream['key_properties'])
 
-                if stream_id not in ['repositories', 'pipelines', 'builds']:
+                if stream_id not in ['builds']:
                     continue
 
                 # get sync function and any sub streams
