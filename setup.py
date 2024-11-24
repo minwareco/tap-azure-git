@@ -21,7 +21,6 @@ setup(name='tap-azure-git',
               'pylint',
               'ipdb',
               'nose',
-              'black==24.3.0',
           ]
       },
       entry_points='''
