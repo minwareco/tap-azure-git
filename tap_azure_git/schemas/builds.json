@@ -4,6 +4,16 @@
         "object"
     ],
     "properties": {
+        "_sdc_repository": {
+            "type": [
+                "string"
+            ]
+        },
+        "_sdc_id": {
+            "type": [
+                "string"
+            ]
+        },
         "_links": {
             "type": [
                 "null",
@@ -683,7 +693,67 @@
                 "drafts": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/DefinitionReference"
+                        "type": [
+                            "null",
+                            "object"
+                        ],
+                        "properties": {
+                            "id": {
+                                "type": "number"
+                            },
+                            "name": {
+                                "type": [
+                                    "null",
+                                    "string"
+                                ]
+                            },
+                            "path": {
+                                "type": [
+                                    "null",
+                                    "string"
+                                ]
+                            },
+                            "project": {
+                                "$ref": "#/definitions/TeamProjectReference"
+                            },
+                            "queueStatus": {
+                                "type": [
+                                    "null",
+                                    "string"
+                                ],
+                                "enum": [
+                                    "disabled",
+                                    "enabled",
+                                    "paused"
+                                ]
+                            },
+                            "revision": {
+                                "type": "number"
+                            },
+                            "type": {
+                                "type": [
+                                    "null",
+                                    "string"
+                                ],
+                                "enum": [
+                                    "build",
+                                    "xaml"
+                                ]
+                            },
+                            "uri": {
+                                "type": [
+                                    "null",
+                                    "string"
+                                ]
+                            },
+                            "url": {
+                                "type": [
+                                    "null",
+                                    "string"
+                                ],
+                                "format": "uri"
+                            }
+                        }
                     }
                 },
                 "id": {

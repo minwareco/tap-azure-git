@@ -36,8 +36,8 @@ KEY_PROPERTIES = {
     'commit_files': ['id'],
     'repositories': ['id'],
     'annotated_tags': ['id'],
-    'builds': ['id'],
-    'build_timelines': ['id'],
+    'builds': ['_sdc_id'],
+    'build_timelines': ['_sdc_id'],
     'pipelines': ['_sdc_id'],
     'runs': ['_sdc_id']
 }
@@ -265,6 +265,25 @@ def authed_get_all_pages(source, url, page_param_name='', skip_param_name='',
 def get_abs_path(path):
     return os.path.join(os.path.dirname(os.path.realpath(__file__)), path)
 
+def remove_definitions_prefix(obj):
+    # If the object is a dictionary, check each key
+    if isinstance(obj, dict):
+        new_obj = {}
+        for key, value in obj.items():
+            if key == "$ref" and isinstance(value, str) and value.startswith("#/definitions/"):
+                # Remove the prefix
+                new_obj[key] = value.replace("#/definitions/", "")
+            else:
+                # Recursively apply the function to nested dictionaries/lists
+                new_obj[key] = remove_definitions_prefix(value)
+        return new_obj
+    # If the object is a list, apply the function to each element
+    elif isinstance(obj, list):
+        return [remove_definitions_prefix(item) for item in obj]
+    # Return the object itself if it's neither a dictionary nor a list
+    else:
+        return obj
+
 def load_schemas():
     schemas = {}
 
@@ -275,7 +294,10 @@ def load_schemas():
             schema = json.load(file)
             refs = schema.pop("definitions", {})
             if refs:
-                singer.resolve_schema_references(schema, refs)
+                schema = singer.resolve_schema_references(
+                    remove_definitions_prefix(schema),
+                    remove_definitions_prefix(refs)
+                )
             schemas[file_raw] = schema
 
     return schemas
@@ -1027,7 +1049,6 @@ def get_all_pipelines(schema, org, repo_path, state, mdata, start_date):
                     '_sdc_repository': sdc_repository,
                     '_sdc_id': '{}/pipeline/{}/{}'.format(sdc_repository, raw_pipeline['id'], raw_pipeline['revision'])
                 }
-                logger.info(json.dumps(pipeline, indent=2))
                 
                 with singer.Transformer() as transformer:
                     rec = transformer.transform(pipeline, schema,
@@ -1085,7 +1106,6 @@ def get_all_pipeline_runs(schema, org, repo_path, pipeline, state, mdata, start_
                 '_sdc_repository': sdc_repository,
                 '_sdc_id': '{}/pipeline/{}/run/{}'.format(sdc_repository, pipeline['id'], raw_run['id'])
             }
-            # logger.info(json.dumps(run, indent=2))
             
             with singer.Transformer() as transformer:
                 rec = transformer.transform(run, schema, metadata=metadata.to_map(mdata))
@@ -1124,7 +1144,6 @@ def get_build_timeline(schema, org, repo_path, build, state, mdata, start_date):
             '_sdc_repository': sdc_repository,
             '_sdc_id': '{}/build/{}/timeline/{}'.format(sdc_repository, build['id'], raw_build_timeline['id'])
         }
-        logger.info(json.dumps(build_timeline, indent=2))
         
         with singer.Transformer() as transformer:
             rec = transformer.transform(build_timeline, schema, metadata=metadata.to_map(mdata))
@@ -1145,7 +1164,8 @@ def get_all_builds(schema, org, repo_path, state, mdata, start_date):
     if bookmarkTime.tzinfo is None:
         bookmarkTime = pytz.UTC.localize(bookmarkTime)
 
-    with metrics.record_counter(stream_id) as counter:
+    with metrics.record_counter(stream_id) as counter, \
+        singer.Transformer() as transformer:
         extraction_time = singer.utils.now()
 
         repo_split = repo_path.split('/')
@@ -1154,11 +1174,10 @@ def get_all_builds(schema, org, repo_path, state, mdata, start_date):
 
         repo_to_ingest = get_repository(org, project, repo_name)
         repo_id_to_ingest = repo_to_ingest["id"]
-        logger.info(f"Repo to ingest : {json.dumps(repo_to_ingest, indent=2)}")
 
         # https://learn.microsoft.com/en-us/rest/api/azure/devops/build/builds/list?view=azure-devops-rest-7.1
         for response in authed_get_all_pages(
-            'builds',
+            stream_id,
             'https://dev.azure.com/{}/{}/_apis/build/builds?queryOrder={}&repositoryId={}&repositoryType={}&api-version={}' \
                 .format(org, project, 'finishTimeDescending', repo_id_to_ingest, "TfsGit", API_VERSION_7_1),
             '$top',
@@ -1176,17 +1195,14 @@ def get_all_builds(schema, org, repo_path, state, mdata, start_date):
                 if is_build_after_time(build, bookmarkTime)
             ]
             
-            with singer.Transformer() as transformer:
-                for build in builds_to_write:
-                    rec = transformer.transform(build, schema,
-                            metadata=metadata.to_map(mdata))
-                    singer.write_record('builds', rec, time_extracted=extraction_time)
-                    counter.increment()
+            for build in builds_to_write:
+                rec = transformer.transform(build, schema,
+                        metadata=metadata.to_map(mdata))
+                singer.write_record(stream_id, rec, time_extracted=extraction_time)
+                counter.increment()
 
-                    logger.info(f'Build : {json.dumps(build, indent=4)}')
-                    
-                    # sync build_timeline substream
-                    state = get_build_timeline(schema, org, repo_path, build, state, mdata, start_date)
+                # sync build_timeline substream
+                state = get_build_timeline(schema, org, repo_path, build, state, mdata, start_date)
 
             # the API is ordered, as soon as we find an item that finished before our bookmark, stop iterating
             if len(builds_to_write) < len(builds):
