@@ -1317,9 +1317,6 @@ def do_sync(config, state, catalog):
             if stream_id in selected_stream_ids:
                 singer.write_schema(stream_id, stream_schema, stream['key_properties'])
 
-                if stream_id not in ['builds']:
-                    continue
-
                 # get sync function and any sub streams
                 sync_func = SYNC_FUNCTIONS[stream_id]
                 sub_stream_ids = SUB_STREAMS.get(stream_id, None)
