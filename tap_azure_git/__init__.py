@@ -1032,14 +1032,16 @@ def get_all_pipelines(schema, org, repo_path, state, mdata, start_date):
                 )
                 raw_pipeline = pipeline_response.json()
 
+                pipeline_repo = raw_pipeline \
+                    .get('configuration', {}) \
+                    .get('repository', {}) \
+                    .get('id', None)
+
                 # Currently, no way to filter pipelines for a specific repostory with the api
                 # have to filter out pipelines not associated with this repo
-                if not ('configuration' in raw_pipeline and \
-                    'repository' in raw_pipeline['configuration'] and \
-                    'id' in raw_pipeline['configuration']['repository'] and \
-                    raw_pipeline['configuration']['repository'] == repo_id_to_ingest):
+                if pipeline_repo != repo_id_to_ingest:
                     logger.info(
-                        "Ignoring pipeline {} because configuration repository is not {} ({})".format(raw_pipeline["id"], repo_path, repo_id_to_ingest)
+                        "Ignoring pipeline {} because configuration repository is {}, not {} ({})".format(raw_pipeline["id"], pipeline_repo, repo_path, repo_id_to_ingest)
                     )
                     continue
 
@@ -1085,7 +1087,7 @@ def get_all_pipeline_runs(schema, org, repo_path, pipeline, state, mdata, start_
         )
         runs = runs_response.json()['value']
         for run_list_item in runs:
-            if run_list_item['finishedDate']:
+            if run_list_item.get('finishedDate', None):
                 run_finished_date = parser.parse(run_list_item['finishedDate'])
                 logger.info(run_finished_date)
                 logger.info(bookmarkTime)
