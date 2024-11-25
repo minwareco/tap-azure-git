@@ -1056,7 +1056,7 @@ def get_all_pipelines(schema, org, repo_path, state, mdata, start_date):
                 singer.write_record('pipelines', rec, time_extracted=extraction_time)
                 counter.increment()
 
-                # state = get_all_pipeline_runs(schema, org, repo_path, pipeline, state, mdata, start_date)
+                state = get_all_pipeline_runs(schema, org, repo_path, pipeline, state, mdata, start_date)
 
     return state
 
