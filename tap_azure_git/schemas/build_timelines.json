@@ -118,13 +118,15 @@
                     "type": [
                         "null",
                         "string"
-                    ]
+                    ],
+                    "format": "date-time"
                 },
                 "finishTime": {
                     "type": [
                         "null",
                         "string"
-                    ]
+                    ],
+                    "format": "date-time"
                 },
                 "currentOperation": {
                     "type": [

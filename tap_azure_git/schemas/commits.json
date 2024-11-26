@@ -82,6 +82,7 @@
             "null",
             "string"
           ],
+          "format": "date-time",
           "description": "Date of the Git operation."
         },
         "email": {
@@ -160,7 +161,8 @@
           "type": [
             "null",
             "string"
-          ]
+          ],
+          "format": "date-time"
         },
         "pushId": {
           "type": [

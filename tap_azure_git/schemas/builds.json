@@ -116,7 +116,8 @@
             "type": [
                 "null",
                 "string"
-            ]
+            ],
+            "format": "date-time"
         },
         "id": {
             "type": "number"
@@ -273,7 +274,8 @@
                     "type": [
                         "null",
                         "string"
-                    ]
+                    ],
+                    "format": "date-time"
                 },
                 "name": {
                     "type": [
@@ -373,7 +375,8 @@
             "type": [
                 "null",
                 "string"
-            ]
+            ],
+            "format": "date-time"
         },
         "reason": {
             "type": [
@@ -568,7 +571,8 @@
             "type": [
                 "null",
                 "string"
-            ]
+            ],
+            "format": "date-time"
         },
         "status": {
             "type": [
@@ -652,7 +656,8 @@
                     "type": [
                         "null",
                         "string"
-                    ]
+                    ],
+                    "format": "date-time"
                 },
                 "name": {
                     "type": [

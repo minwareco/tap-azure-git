@@ -44,6 +44,7 @@
         "null",
         "string"
       ],
+      "format": "date-time",
       "description": "The time this thread was last updated."
     },
     "properties": {
@@ -58,6 +59,7 @@
         "null",
         "string"
       ],
+      "format": "date-time",
       "description": "The time this thread was published."
     },
     "pullRequestThreadContext": {
@@ -120,6 +122,7 @@
             "null",
             "string"
           ],
+          "format": "date-time",
           "description": "The date the comment's content was last updated."
         },
         "lastUpdatedDate": {
@@ -127,6 +130,7 @@
             "null",
             "string"
           ],
+          "format": "date-time",
           "description": "The date the comment was last updated."
         },
         "parentCommentId": {
@@ -141,6 +145,7 @@
             "null",
             "string"
           ],
+          "format": "date-time",
           "description": "The date the comment was first published."
         },
         "usersLiked": {
