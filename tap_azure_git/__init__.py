@@ -1,24 +1,26 @@
+# Standard Library
 import argparse
-import os
-import json
+import asyncio
 import collections
+import functools
+import gc
+import json
+import os
+import re
 import time
-from dateutil import parser
+import urllib.parse
+from datetime import datetime
+from operator import itemgetter
+
+# 3rd Party
+import psutil
 import pytz
 import requests
-import re
-import psutil
-import asyncio
-import gc
 import singer
 import singer.bookmarks as bookmarks
 import singer.metrics as metrics
-import difflib
-import urllib.parse
-from operator import itemgetter
-
+from dateutil import parser
 from gitlocal import GitLocal
-
 from singer import metadata
 
 session = requests.Session()
@@ -33,10 +35,15 @@ KEY_PROPERTIES = {
     'refs': ['id'],
     'commit_files': ['id'],
     'repositories': ['id'],
-    'annotated_tags': ['id']
+    'annotated_tags': ['id'],
+    'builds': ['_sdc_id'],
+    'build_timelines': ['_sdc_id'],
+    'pipelines': ['_sdc_id'],
+    'runs': ['_sdc_id']
 }
 
-API_VESION = "6.0"
+API_VERSION = "6.0"
+API_VERSION_7_1 = "7.1"
 
 class AzureException(Exception):
     pass
@@ -258,6 +265,25 @@ def authed_get_all_pages(source, url, page_param_name='', skip_param_name='',
 def get_abs_path(path):
     return os.path.join(os.path.dirname(os.path.realpath(__file__)), path)
 
+def remove_definitions_prefix(obj):
+    # If the object is a dictionary, check each key
+    if isinstance(obj, dict):
+        new_obj = {}
+        for key, value in obj.items():
+            if key == "$ref" and isinstance(value, str) and value.startswith("#/definitions/"):
+                # Remove the prefix
+                new_obj[key] = value.replace("#/definitions/", "")
+            else:
+                # Recursively apply the function to nested dictionaries/lists
+                new_obj[key] = remove_definitions_prefix(value)
+        return new_obj
+    # If the object is a list, apply the function to each element
+    elif isinstance(obj, list):
+        return [remove_definitions_prefix(item) for item in obj]
+    # Return the object itself if it's neither a dictionary nor a list
+    else:
+        return obj
+
 def load_schemas():
     schemas = {}
 
@@ -268,7 +294,10 @@ def load_schemas():
             schema = json.load(file)
             refs = schema.pop("definitions", {})
             if refs:
-                singer.resolve_schema_references(schema, refs)
+                schema = singer.resolve_schema_references(
+                    remove_definitions_prefix(schema),
+                    remove_definitions_prefix(refs)
+                )
             schemas[file_raw] = schema
 
     return schemas
@@ -333,6 +362,15 @@ def get_catalog():
 
     return {'streams': streams}
 
+
+@functools.cache
+def get_repository(org, project, repo):
+    # https://learn.microsoft.com/en-us/rest/api/azure/devops/git/repositories/get-repository?view=azure-devops-rest-7.1&tabs=HTTP
+    return authed_get(
+        "repository",
+        f"https://dev.azure.com/{org}/{project}/_apis/git/repositories/{repo}"
+    ).json()
+
 def verify_repo_access(url_for_repo, repo, config):
     try:
         authed_get("verifying repository access", url_for_repo)
@@ -364,7 +402,7 @@ def verify_access_for_repo(config):
         # https://dev.azure.com/${ORG}/${PROJECTNAME}/_apis/git/repositories/${REPONAME}/commits?searchCriteria.\$top=${PAGESIZE}\&searchCriteria.\$skip=${SKIP}\&api-version=${APIVERSION}
         url_for_repo = "https://dev.azure.com/{}/{}/_apis/git/repositories/{}/commits?" \
             "searchCriteria.$top={}&searchCriteria.$skip={}&api-version={}" \
-            .format(org, project, project_repo, per_page, page - 1, API_VESION)
+            .format(org, project, project_repo, per_page, page - 1, API_VERSION)
 
         # Verifying for Repo access
         verify_repo_access(url_for_repo, repo, config)
@@ -382,7 +420,7 @@ def write_commit_detail(org, project, project_repo, commit, schema, mdata, extra
         'commits',
         "https://dev.azure.com/{}/{}/_apis/git/repositories/{}/commits/{}?" \
         "api-version={}" \
-        .format(org, project, project_repo, commit['commitId'], API_VESION)
+        .format(org, project, project_repo, commit['commitId'], API_VERSION)
     ):
         detail_json = commit_detail.json()
         commit['parents'] = detail_json['parents']
@@ -437,7 +475,7 @@ def get_all_commits(schema, org, repo_path, state, mdata, start_date):
                 'commits',
                 "https://dev.azure.com/{}/{}/_apis/git/repositories/{}/commits?" \
                 "api-version={}&searchCriteria.fromDate={}" \
-                .format(org, project, project_repo, API_VESION, bookmark),
+                .format(org, project, project_repo, API_VERSION, bookmark),
                 'searchCriteria.$top',
                 'searchCriteria.$skip',
                 iterate_state=iterate_state
@@ -784,7 +822,7 @@ def get_threads_for_pr(prid, schema, org, repo_path, state, mdata):
             'pull_request_threads',
             "https://dev.azure.com/{}/{}/_apis/git/repositories/{}/pullrequests/{}/threads?" \
             "api-version={}" \
-            .format(org, project, project_repo, prid, API_VESION)
+            .format(org, project, project_repo, prid, API_VERSION)
     ):
         threads = response.json()
         for thread in threads['value']:
@@ -809,7 +847,7 @@ def get_pull_request_heads(org, repo_path):
             'pull_requests',
             "https://dev.azure.com/{}/{}/_apis/git/repositories/{}/pullrequests?" \
             "api-version={}&searchCriteria.status=all" \
-            .format(org, project, project_repo, API_VESION),
+            .format(org, project, project_repo, API_VERSION),
             '$top',
             '$skip',
             True # No link header to indicate availability of more data
@@ -845,7 +883,7 @@ def get_all_pull_requests(schemas, org, repo_path, state, mdata, start_date):
                 'pull_requests',
                 "https://dev.azure.com/{}/{}/_apis/git/repositories/{}/pullrequests?" \
                 "api-version={}&searchCriteria.status=all" \
-                .format(org, project, project_repo, API_VESION),
+                .format(org, project, project_repo, API_VERSION),
                 '$top',
                 '$skip',
                 True # No link header to indicate availability of more data
@@ -865,7 +903,7 @@ def get_all_pull_requests(schemas, org, repo_path, state, mdata, start_date):
                         'pull_requests/commits',
                         "https://dev.azure.com/{}/{}/_apis/git/repositories/{}/pullrequests/{}/commits?" \
                         "api-version={}" \
-                        .format(org, project, project_repo, prid, API_VESION),
+                        .format(org, project, project_repo, prid, API_VERSION),
                         '$top',
                         'continuationToken'
                 ):
@@ -917,7 +955,7 @@ def get_all_repositories(schema, org, repo_path, state, mdata, start_date):
             'projects',
             "https://dev.azure.com/{}/_apis/projects?" \
             "api-version={}" \
-            .format(org, API_VESION),
+            .format(org, API_VERSION),
             '$top',
             '$skip',
             True # No link header to indicate availability of more data
@@ -929,7 +967,7 @@ def get_all_repositories(schema, org, repo_path, state, mdata, start_date):
                     'repositories',
                     "https://dev.azure.com/{}/{}/_apis/git/repositories?" \
                     "api-version={}" \
-                    .format(org, projectName, API_VESION),
+                    .format(org, projectName, API_VERSION),
                     '$top',
                     '$skip',
                     True # No link header to indicate availability of more data
@@ -964,6 +1002,220 @@ def get_all_repositories(schema, org, repo_path, state, mdata, start_date):
                         counter.increment()
     return state
 
+def get_all_pipelines(schema, org, repo_path, state, mdata, start_date):
+    ## NO BOOKMARKS
+    with metrics.record_counter('pipelines') as counter:
+        extraction_time = singer.utils.now()
+
+        repo_split = repo_path.split('/')
+        project = repo_split[0]
+        repo_name = repo_split[1]
+
+        repo_to_ingest = get_repository(org, project, repo_name)
+        repo_id_to_ingest = repo_to_ingest["id"]
+
+        # https://learn.microsoft.com/en-us/rest/api/azure/devops/pipelines/pipelines/list?view=azure-devops-rest-7.1
+        for response in authed_get_all_pages(
+            'pipelines_list',
+            "https://dev.azure.com/{}/{}/_apis/pipelines?api-version={}" \
+                .format(org, project, API_VERSION_7_1),
+            '$top',
+            'continuationToken'
+        ):
+            pipelines = response.json()['value']
+            for pipeline_list_item in pipelines:
+                # https://learn.microsoft.com/en-us/rest/api/azure/devops/pipelines/pipelines/get?view=azure-devops-rest-7.1
+                pipeline_response = authed_get(
+                    'pipeline',
+                    "https://dev.azure.com/{}/{}/_apis/pipelines/{}?api-version={}" \
+                        .format(org, project, pipeline_list_item['id'], API_VERSION_7_1)
+                )
+                raw_pipeline = pipeline_response.json()
+
+                pipeline_repo = raw_pipeline \
+                    .get('configuration', {}) \
+                    .get('repository', {}) \
+                    .get('id', None)
+
+                # Currently, no way to filter pipelines for a specific repostory with the api
+                # have to filter out pipelines not associated with this repo
+                if pipeline_repo != repo_id_to_ingest:
+                    logger.info(
+                        "Ignoring pipeline {} because configuration repository is {}, not {} ({})".format(raw_pipeline["id"], pipeline_repo, repo_path, repo_id_to_ingest)
+                    )
+                    continue
+
+                sdc_repository = '{}/{}/{}'.format(org, project, repo_name)
+                pipeline = {
+                    **raw_pipeline,
+                    '_sdc_repository': sdc_repository,
+                    '_sdc_id': '{}/pipeline/{}/{}'.format(sdc_repository, raw_pipeline['id'], raw_pipeline['revision'])
+                }
+                
+                with singer.Transformer() as transformer:
+                    rec = transformer.transform(pipeline, schema,
+                        metadata=metadata.to_map(mdata))
+                singer.write_record('pipelines', rec, time_extracted=extraction_time)
+                counter.increment()
+
+                state = get_all_pipeline_runs(schema, org, repo_path, pipeline, state, mdata, start_date)
+
+    return state
+
+def get_all_pipeline_runs(schema, org, repo_path, pipeline, state, mdata, start_date):
+    bookmark_key = "{}_finishedDate".format(pipeline['id'])
+    bookmark = get_bookmark(state, repo_path, "pipeline", bookmark_key, start_date)
+    if not bookmark:
+        bookmark = '1970-01-01T00:00:00Z'
+
+    bookmarkTime = parser.parse(bookmark)
+    if bookmarkTime.tzinfo is None:
+        bookmarkTime = pytz.UTC.localize(bookmarkTime)
+
+    with metrics.record_counter('runs') as counter:
+        extraction_time = singer.utils.now()
+
+        repo_split = repo_path.split('/')
+        project = repo_split[0]
+        repo_name = repo_split[1]
+
+        # https://learn.microsoft.com/en-us/rest/api/azure/devops/pipelines/runs/list?view=azure-devops-rest-7.1
+        runs_response = authed_get(
+            'runs',
+            "https://dev.azure.com/{}/{}/_apis/pipelines/{}/runs?api-version={}" \
+                .format(org, project, pipeline['id'], API_VERSION_7_1)
+        )
+        runs = runs_response.json()['value']
+        for run_list_item in runs:
+            if run_list_item.get('finishedDate', None):
+                run_finished_date = parser.parse(run_list_item['finishedDate'])
+                logger.info(run_finished_date)
+                logger.info(bookmarkTime)
+                if run_finished_date <= bookmarkTime:
+                    continue
+
+            # https://learn.microsoft.com/en-us/rest/api/azure/devops/pipelines/runs/get?view=azure-devops-rest-7.1
+            run_response = authed_get(
+                'run',
+                "https://dev.azure.com/{}/{}/_apis/pipelines/{}/runs/{}?api-version={}" \
+                    .format(org, project, pipeline['id'], run_list_item['id'], API_VERSION_7_1)
+            )
+            
+            raw_run = run_response.json()
+            sdc_repository = '{}/{}/{}'.format(org, project, repo_name)
+            run = {
+                **raw_run,
+                '_sdc_repository': sdc_repository,
+                '_sdc_id': '{}/pipeline/{}/run/{}'.format(sdc_repository, pipeline['id'], raw_run['id'])
+            }
+            
+            with singer.Transformer() as transformer:
+                rec = transformer.transform(run, schema, metadata=metadata.to_map(mdata))
+            singer.write_record('runs', rec, time_extracted=extraction_time)
+            counter.increment()
+    
+        singer.write_bookmark(state, repo_path, 'pipeline', { bookmark_key: singer.utils.strftime(extraction_time) })
+    
+    return state
+
+def is_build_after_time(build, time_to_compare):
+    return 'finishedDate' not in build or \
+        parser.parse(build['finishedDate']) > time_to_compare
+
+def get_build_timeline(schema, org, repo_path, build, state, mdata, start_date):
+    stream_id = 'build_timelines'
+
+    with metrics.record_counter(stream_id) as counter:
+        extraction_time = singer.utils.now()
+
+        repo_split = repo_path.split('/')
+        project = repo_split[0]
+        repo_name = repo_split[1]
+
+        # https://learn.microsoft.com/en-us/rest/api/azure/devops/build/timeline/get?view=azure-devops-rest-7.1
+        build_timeline_response = authed_get(
+            stream_id,
+            "https://dev.azure.com/{}/{}/_apis/build/builds/{}/Timeline?api-version={}" \
+                .format(org, project, build['id'], API_VERSION_7_1)
+        )
+        raw_build_timeline = build_timeline_response.json()
+        sdc_repository = '{}/{}/{}'.format(org, project, repo_name)
+        
+        build_timeline = {
+            **raw_build_timeline,
+            '_sdc_repository': sdc_repository,
+            '_sdc_id': '{}/build/{}/timeline/{}'.format(sdc_repository, build['id'], raw_build_timeline['id'])
+        }
+        
+        with singer.Transformer() as transformer:
+            rec = transformer.transform(build_timeline, schema, metadata=metadata.to_map(mdata))
+        singer.write_record(stream_id, rec, time_extracted=extraction_time)
+        counter.increment()
+
+    return state
+
+def get_all_builds(schema, org, repo_path, state, mdata, start_date):
+    stream_id = "builds"
+    bookmark_key = "finishedDate"
+
+    bookmark = get_bookmark(state, repo_path, stream_id, bookmark_key, start_date)
+    if not bookmark:
+        bookmark = '1970-01-01T00:00:00Z'
+
+    bookmarkTime = parser.parse(bookmark)
+    if bookmarkTime.tzinfo is None:
+        bookmarkTime = pytz.UTC.localize(bookmarkTime)
+
+    with metrics.record_counter(stream_id) as counter, \
+        singer.Transformer() as transformer:
+        extraction_time = singer.utils.now()
+
+        repo_split = repo_path.split('/')
+        project = repo_split[0]
+        repo_name = repo_split[1]
+
+        repo_to_ingest = get_repository(org, project, repo_name)
+        repo_id_to_ingest = repo_to_ingest["id"]
+
+        # https://learn.microsoft.com/en-us/rest/api/azure/devops/build/builds/list?view=azure-devops-rest-7.1
+        for response in authed_get_all_pages(
+            stream_id,
+            'https://dev.azure.com/{}/{}/_apis/build/builds?queryOrder={}&repositoryId={}&repositoryType={}&api-version={}' \
+                .format(org, project, 'finishTimeDescending', repo_id_to_ingest, "TfsGit", API_VERSION_7_1),
+            '$top',
+            'continuationToken'
+        ):
+            builds = response.json()['value']
+            sdc_repository = '{}/{}/{}'.format(org, project, repo_name)
+            builds_to_write = [
+                {
+                    **build,
+                    '_sdc_repository': sdc_repository,
+                    '_sdc_id': '{}/build/{}'.format(sdc_repository, build['id'])
+                }
+                for build in builds
+                if is_build_after_time(build, bookmarkTime)
+            ]
+            
+            for build in builds_to_write:
+                rec = transformer.transform(build, schema,
+                        metadata=metadata.to_map(mdata))
+                singer.write_record(stream_id, rec, time_extracted=extraction_time)
+                counter.increment()
+
+                # sync build_timeline substream
+                state = get_build_timeline(schema, org, repo_path, build, state, mdata, start_date)
+
+            # the API is ordered, as soon as we find an item that finished before our bookmark, stop iterating
+            if len(builds_to_write) < len(builds):
+                break
+    
+        singer.write_bookmark(state, repo_path, stream_id, {
+            bookmark_key: singer.utils.strftime(extraction_time)
+        })
+    
+    return state
+
 def get_selected_streams(catalog):
     '''
     Gets selected streams.  Checks schema's 'selected'
@@ -994,11 +1246,15 @@ SYNC_FUNCTIONS = {
     'commit_files': get_all_commit_files,
     'pull_requests': get_all_pull_requests,
     'repositories': get_all_repositories,
+    'builds': get_all_builds,
+    'pipelines': get_all_pipelines
 }
 
 SUB_STREAMS = {
     'pull_requests': ['pull_request_threads'],
-    'commit_files': ['refs', 'annotated_tags']
+    'commit_files': ['refs', 'annotated_tags'],
+    'builds': ['build_timelines'],
+    'pipelines': ['runs']
 }
 
 def do_sync(config, state, catalog):

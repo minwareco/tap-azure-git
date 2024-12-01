@@ -14,7 +14,7 @@
         "array"
       ],
       "items": {
-        "$ref": "Comment"
+        "$ref": "#/definitions/Comment"
       },
       "description": "A list of the comments."
     },
@@ -44,6 +44,7 @@
         "null",
         "string"
       ],
+      "format": "date-time",
       "description": "The time this thread was last updated."
     },
     "properties": {
@@ -58,6 +59,7 @@
         "null",
         "string"
       ],
+      "format": "date-time",
       "description": "The time this thread was published."
     },
     "pullRequestThreadContext": {
@@ -75,7 +77,7 @@
       "description": "The status of the comment thread."
     },
     "threadContext": {
-      "$ref": "CommentThreadContext",
+      "$ref": "#/definitions/CommentThreadContext",
       "description": "Specify thread context such as position in left/right file."
     }
   },
@@ -84,7 +86,7 @@
       "type": ["null", "object"],
       "properties": {
         "author": {
-          "$ref": "IdentityRef",
+          "$ref": "#/definitions/IdentityRef",
           "description": "The author of the comment."
         },
         "commentType": {
@@ -120,6 +122,7 @@
             "null",
             "string"
           ],
+          "format": "date-time",
           "description": "The date the comment's content was last updated."
         },
         "lastUpdatedDate": {
@@ -127,6 +130,7 @@
             "null",
             "string"
           ],
+          "format": "date-time",
           "description": "The date the comment was last updated."
         },
         "parentCommentId": {
@@ -141,6 +145,7 @@
             "null",
             "string"
           ],
+          "format": "date-time",
           "description": "The date the comment was first published."
         },
         "usersLiked": {
@@ -149,7 +154,7 @@
             "array"
           ],
           "items": {
-            "$ref": "IdentityRef"
+            "$ref": "#/definitions/IdentityRef"
           },
           "description": "A list of the users who have liked this comment."
         }
@@ -166,19 +171,19 @@
           "description": "File path relative to the root of the repository. It's up to the client to use any path format."
         },
         "leftFileEnd": {
-          "$ref": "CommentPosition",
+          "$ref": "#/definitions/CommentPosition",
           "description": "Position of last character of the thread's span in left file."
         },
         "leftFileStart": {
-          "$ref": "CommentPosition",
+          "$ref": "#/definitions/CommentPosition",
           "description": "Position of first character of the thread's span in left file."
         },
         "rightFileEnd": {
-          "$ref": "CommentPosition",
+          "$ref": "#/definitions/CommentPosition",
           "description": "Position of last character of the thread's span in right file."
         },
         "rightFileStart": {
-          "$ref": "CommentPosition",
+          "$ref": "#/definitions/CommentPosition",
           "description": "Position of first character of the thread's span in right file."
         }
       }

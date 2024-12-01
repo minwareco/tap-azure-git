@@ -1,0 +1,310 @@
+{
+    "type": [
+        "null",
+        "object"
+    ],
+    "properties": {
+        "_sdc_repository": {
+            "type": [
+                "string"
+            ]
+        },
+        "_sdc_id": {
+            "type": [
+                "string"
+            ]
+        },
+        "records": {
+            "type": [
+                "array",
+                "null"
+            ],
+            "items": {
+                "$ref": "#/definitions/Record"
+            }
+        },
+        "lastChangedBy": {
+            "type": [
+                "null",
+                "string"
+            ],
+            "format": "uuid"
+        },
+        "lastChangedOn": {
+            "type": [
+                "null",
+                "string"
+            ],
+            "format": "date-time"
+        },
+        "id": {
+            "type": "string",
+            "format": "uuid"
+        },
+        "changeId": {
+            "type": "number"
+        },
+        "url": {
+            "type": [
+                "null",
+                "string"
+            ],
+            "format": "uri"
+        }
+    },
+    "definitions": {
+        "Record": {
+            "type": [
+                "object",
+                "null"
+            ],
+            "properties": {
+                "previousAttempts": {
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "properties": {
+                            "attempt": {
+                                "type": [
+                                    "integer",
+                                    "null"
+                                ]
+                            },
+                            "recordId": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "timelineId": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "id": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "parentId": {
+                    "type": [
+                        "null",
+                        "string"
+                    ],
+                    "format": "uuid"
+                },
+                "type": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                },
+                "name": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                },
+                "startTime": {
+                    "type": [
+                        "null",
+                        "string"
+                    ],
+                    "format": "date-time"
+                },
+                "finishTime": {
+                    "type": [
+                        "null",
+                        "string"
+                    ],
+                    "format": "date-time"
+                },
+                "currentOperation": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                },
+                "percentComplete": {
+                    "type": [
+                        "null",
+                        "integer"
+                    ]
+                },
+                "state": {
+                    "type": [
+                        "null",
+                        "string"
+                    ],
+                    "enum": [
+                        "completed",
+                        "inProgress",
+                        "pending"
+                    ]
+                },
+                "result": {
+                    "type": [
+                        "null",
+                        "string"
+                    ],
+                    "enum": [
+                        "abandoned",
+                        "canceled",
+                        "failed",
+                        "skipped",
+                        "succeeded",
+                        "succeededWithIssues"
+                    ]
+                },
+                "resultCode": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                },
+                "changeId": {
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                },
+                "lastModified": {
+                    "type": [
+                        "null",
+                        "string"
+                    ],
+                    "format": "date-time"
+                },
+                "workerName": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                },
+                "queueId": {
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                },
+                "order": {
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                },
+                "details": {
+                    "type": [
+                        "null",
+                        "object"
+                    ],
+                    "properties": {
+                        "changeId": {
+                            "type": [
+                                "integer",
+                                "null"
+                            ]
+                        },
+                        "id": {
+                            "type": [
+                                "null",
+                                "string"
+                            ]
+                        },
+                        "url": {
+                            "type": [
+                                "null",
+                                "string"
+                            ],
+                            "format": "uri"
+                        }
+                    }
+                },
+                "errorCount": {
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "warningCount": {
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "url": {
+                    "type": [
+                        "null",
+                        "string"
+                    ],
+                    "format": "uri"
+                },
+                "log": {
+                    "type": [
+                        "null",
+                        "object"
+                    ],
+                    "properties": {
+                        "id": {
+                            "type": "integer"
+                        },
+                        "type": {
+                            "type": [
+                                "null",
+                                "string"
+                            ]
+                        },
+                        "url": {
+                            "type": [
+                                "null",
+                                "string"
+                            ]
+                        }
+                    }
+                },
+                "task": {
+                    "type": [
+                        "null",
+                        "object"
+                    ],
+                    "properties": {
+                        "id": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "name": {
+                            "type": [
+                                "null",
+                                "string"
+                            ]
+                        },
+                        "version": {
+                            "type": [
+                                "null",
+                                "string"
+                            ]
+                        }
+                    }
+                },
+                "attempt": {
+                    "type": "number"
+                },
+                "identifier": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                }
+            }
+        }
+    }
+}

@@ -14,7 +14,7 @@
       "type": ["string"]
     },
     "tagger": {
-      "$ref": "GitUserDate",
+      "$ref": "#/definitions/GitUserDate",
       "description": "Author of the tag."
     },
     "message": {

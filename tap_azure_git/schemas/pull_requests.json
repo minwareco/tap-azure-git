@@ -13,11 +13,11 @@
       "description": "A string which uniquely identifies this pull request. To generate an artifact ID for a pull request, use this template: vstfs:///Git/PullRequestId/{projectId}/{repositoryId}/{pullRequestId}"
     },
     "autoCompleteSetBy": {
-      "$ref": "IdentityRef",
+      "$ref": "#/definitions/IdentityRef",
       "description": "If set, auto-complete is enabled for this pull request and this is the identity that enabled it."
     },
     "closedBy": {
-      "$ref": "IdentityRef",
+      "$ref": "#/definitions/IdentityRef",
       "description": "The user who closed the pull request."
     },
     "closedDate": {
@@ -41,12 +41,12 @@
         "array"
       ],
       "items": {
-        "$ref": "GitCommitRefShallow"
+        "$ref": "#/definitions/GitCommitRefShallow"
       },
       "description": "The commits contained in the pull request."
     },
     "completionOptions": {
-      "$ref": "GitPullRequestCompletionOptions",
+      "$ref": "#/definitions/GitPullRequestCompletionOptions",
       "description": ""
     },
     "completionQueueTime": {
@@ -58,7 +58,7 @@
       "description": "The most recent date at which the pull request entered the queue to be completed. Used internally."
     },
     "createdBy": {
-      "$ref": "IdentityRef",
+      "$ref": "#/definitions/IdentityRef",
       "description": "The identity of the user who created the pull request."
     },
     "creationDate": {
@@ -96,20 +96,20 @@
         "array"
       ],
       "items": {
-        "$ref": "WebApiTagDefinition"
+        "$ref": "#/definitions/WebApiTagDefinition"
       },
       "description": "The labels associated with the pull request."
     },
     "lastMergeCommit": {
-      "$ref": "GitCommitRefShallow",
+      "$ref": "#/definitions/GitCommitRefShallow",
       "description": "The commit of the most recent pull request merge. If empty, the most recent merge is in progress or was unsuccessful."
     },
     "lastMergeSourceCommit": {
-      "$ref": "GitCommitRefShallow",
+      "$ref": "#/definitions/GitCommitRefShallow",
       "description": "The commit at the head of the source branch at the time of the last pull request merge."
     },
     "lastMergeTargetCommit": {
-      "$ref": "GitCommitRefShallow",
+      "$ref": "#/definitions/GitCommitRefShallow",
       "description": "The commit at the head of the target branch at the time of the last pull request merge."
     },
     "mergeFailureMessage": {
@@ -162,7 +162,7 @@
       "description": "Used internally."
     },
     "repository": {
-      "$ref": "GitRepositoryShallow",
+      "$ref": "#/definitions/GitRepositoryShallow",
       "description": "The repository containing the target branch of the pull request."
     },
     "reviewers": {
@@ -171,7 +171,7 @@
         "array"
       ],
       "items": {
-        "$ref": "IdentityRefWithVote"
+        "$ref": "#/definitions/IdentityRefWithVote"
       },
       "description": "A list of reviewers on the pull request along with the state of their votes."
     },
@@ -223,7 +223,7 @@
         "array"
       ],
       "items": {
-        "$ref": "ResourceRef"
+        "$ref": "#/definitions/ResourceRef"
       },
       "description": "Any work item references associated with this pull request."
     }

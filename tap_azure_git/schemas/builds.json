@@ -1,0 +1,823 @@
+{
+    "type": [
+        "null",
+        "object"
+    ],
+    "properties": {
+        "_sdc_repository": {
+            "type": [
+                "string"
+            ]
+        },
+        "_sdc_id": {
+            "type": [
+                "string"
+            ]
+        },
+        "_links": {
+            "type": [
+                "null",
+                "object"
+            ],
+            "properties": {
+                "badge": {
+                    "type": [
+                        "null",
+                        "object"
+                    ],
+                    "properties": {
+                        "href": {
+                            "type": [
+                                "null",
+                                "string"
+                            ],
+                            "format": "uri"
+                        }
+                    }
+                },
+                "self": {
+                    "type": [
+                        "null",
+                        "object"
+                    ],
+                    "properties": {
+                        "href": {
+                            "type": [
+                                "null",
+                                "string"
+                            ],
+                            "format": "uri"
+                        }
+                    }
+                },
+                "sourceVersionDisplayUri": {
+                    "type": [
+                        "null",
+                        "object"
+                    ],
+                    "properties": {
+                        "href": {
+                            "type": [
+                                "null",
+                                "string"
+                            ],
+                            "format": "uri"
+                        }
+                    }
+                },
+                "timeline": {
+                    "type": [
+                        "null",
+                        "object"
+                    ],
+                    "properties": {
+                        "href": {
+                            "type": [
+                                "null",
+                                "string"
+                            ],
+                            "format": "uri"
+                        }
+                    }
+                },
+                "web": {
+                    "type": [
+                        "null",
+                        "object"
+                    ],
+                    "properties": {
+                        "href": {
+                            "type": [
+                                "null",
+                                "string"
+                            ],
+                            "format": "uri"
+                        }
+                    }
+                }
+            }
+        },
+        "appendCommitMessageToRunName": {
+            "type": "boolean"
+        },
+        "buildNumber": {
+            "type": [
+                "null",
+                "string"
+            ]
+        },
+        "buildNumberRevision": {
+            "type": "number"
+        },
+        "definition": {
+            "$ref": "#/definitions/DefinitionReference"
+        },
+        "finishTime": {
+            "type": [
+                "null",
+                "string"
+            ],
+            "format": "date-time"
+        },
+        "id": {
+            "type": "number"
+        },
+        "lastChangedBy": {
+            "type": [
+                "null",
+                "object"
+            ],
+            "properties": {
+                "_links": {
+                    "type": [
+                        "null",
+                        "object"
+                    ],
+                    "properties": {
+                        "avatar": {
+                            "type": [
+                                "null",
+                                "object"
+                            ],
+                            "properties": {
+                                "href": {
+                                    "type": [
+                                        "null",
+                                        "string"
+                                    ],
+                                    "format": "uri"
+                                }
+                            }
+                        }
+                    }
+                },
+                "descriptor": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                },
+                "displayName": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                },
+                "id": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                },
+                "imageUrl": {
+                    "type": [
+                        "null",
+                        "string"
+                    ],
+                    "format": "uri"
+                },
+                "uniqueName": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                },
+                "url": {
+                    "type": [
+                        "null",
+                        "string"
+                    ],
+                    "format": "uri"
+                }
+            }
+        },
+        "lastChangedDate": {
+            "type": [
+                "null",
+                "string"
+            ],
+            "format": "date-time"
+        },
+        "logs": {
+            "type": [
+                "null",
+                "object"
+            ],
+            "properties": {
+                "id": {
+                    "type": "number"
+                },
+                "type": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                },
+                "url": {
+                    "type": [
+                        "null",
+                        "string"
+                    ],
+                    "format": "uri"
+                }
+            }
+        },
+        "orchestrationPlan": {
+            "type": [
+                "null",
+                "object"
+            ],
+            "properties": {
+                "planId": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                }
+            }
+        },
+        "plans": {
+            "type": "array",
+            "items": {
+                "type": [
+                    "null",
+                    "object"
+                ],
+                "properties": {
+                    "planId": {
+                        "type": [
+                            "null",
+                            "string"
+                        ]
+                    }
+                }
+            }
+        },
+        "priority": {
+            "type": [
+                "null",
+                "string"
+            ]
+        },
+        "project": {
+            "type": [
+                "null",
+                "object"
+            ],
+            "properties": {
+                "id": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                },
+                "lastUpdateTime": {
+                    "type": [
+                        "null",
+                        "string"
+                    ],
+                    "format": "date-time"
+                },
+                "name": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                },
+                "revision": {
+                    "type": "number"
+                },
+                "state": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                },
+                "url": {
+                    "type": [
+                        "null",
+                        "string"
+                    ],
+                    "format": "uri"
+                },
+                "visibility": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                }
+            }
+        },
+        "properties": {
+            "type": [
+                "null",
+                "object"
+            ],
+            "properties": {
+                "item": {
+                    "type": [
+                        "null",
+                        "object"
+                    ],
+                    "additionalProperties": true
+                },
+                "keys": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "values": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "queue": {
+            "type": [
+                "null",
+                "object"
+            ],
+            "properties": {
+                "id": {
+                    "type": "number"
+                },
+                "name": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                },
+                "pool": {
+                    "type": [
+                        "null",
+                        "object"
+                    ],
+                    "properties": {
+                        "id": {
+                            "type": "number"
+                        },
+                        "isHosted": {
+                            "type": "boolean"
+                        },
+                        "name": {
+                            "type": [
+                                "null",
+                                "string"
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "queueTime": {
+            "type": [
+                "null",
+                "string"
+            ],
+            "format": "date-time"
+        },
+        "reason": {
+            "type": [
+                "null",
+                "string"
+            ]
+        },
+        "repository": {
+            "type": [
+                "null",
+                "object"
+            ],
+            "properties": {
+                "checkoutSubmodules": {
+                    "type": "boolean"
+                },
+                "clean": {},
+                "id": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                },
+                "type": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                }
+            }
+        },
+        "requestedBy": {
+            "type": [
+                "null",
+                "object"
+            ],
+            "properties": {
+                "_links": {
+                    "type": [
+                        "null",
+                        "object"
+                    ],
+                    "properties": {
+                        "avatar": {
+                            "type": [
+                                "null",
+                                "object"
+                            ],
+                            "properties": {
+                                "href": {
+                                    "type": [
+                                        "null",
+                                        "string"
+                                    ],
+                                    "format": "uri"
+                                }
+                            }
+                        }
+                    }
+                },
+                "descriptor": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                },
+                "displayName": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                },
+                "id": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                },
+                "imageUrl": {
+                    "type": [
+                        "null",
+                        "string"
+                    ],
+                    "format": "uri"
+                },
+                "uniqueName": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                },
+                "url": {
+                    "type": [
+                        "null",
+                        "string"
+                    ],
+                    "format": "uri"
+                }
+            }
+        },
+        "requestedFor": {
+            "type": [
+                "null",
+                "object"
+            ],
+            "properties": {
+                "_links": {
+                    "type": [
+                        "null",
+                        "object"
+                    ],
+                    "properties": {
+                        "avatar": {
+                            "type": [
+                                "null",
+                                "object"
+                            ],
+                            "properties": {
+                                "href": {
+                                    "type": [
+                                        "null",
+                                        "string"
+                                    ],
+                                    "format": "uri"
+                                }
+                            }
+                        }
+                    }
+                },
+                "descriptor": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                },
+                "displayName": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                },
+                "id": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                },
+                "imageUrl": {
+                    "type": [
+                        "null",
+                        "string"
+                    ],
+                    "format": "uri"
+                },
+                "uniqueName": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                },
+                "url": {
+                    "type": [
+                        "null",
+                        "string"
+                    ],
+                    "format": "uri"
+                }
+            }
+        },
+        "result": {
+            "type": [
+                "null",
+                "string"
+            ]
+        },
+        "retainedByRelease": {
+            "type": "boolean"
+        },
+        "sourceBranch": {
+            "type": [
+                "null",
+                "string"
+            ]
+        },
+        "sourceVersion": {
+            "type": [
+                "null",
+                "string"
+            ]
+        },
+        "startTime": {
+            "type": [
+                "null",
+                "string"
+            ],
+            "format": "date-time"
+        },
+        "status": {
+            "type": [
+                "null",
+                "string"
+            ]
+        },
+        "tags": {
+            "type": "array",
+            "items": {
+                "type": [
+                    "null",
+                    "string"
+                ]
+            }
+        },
+        "triggerInfo": {
+            "type": [
+                "null",
+                "object"
+            ],
+            "properties": {}
+        },
+        "triggeredByBuild": {},
+        "uri": {
+            "type": [
+                "null",
+                "string"
+            ]
+        },
+        "url": {
+            "type": [
+                "null",
+                "string"
+            ],
+            "format": "uri"
+        },
+        "validationResults": {
+            "type": "array",
+            "items": {
+                "type": [
+                    "null",
+                    "object"
+                ],
+                "properties": {
+                    "message": {
+                        "type": [
+                            "null",
+                            "string"
+                        ]
+                    },
+                    "result": {
+                        "type": [
+                            "null",
+                            "string"
+                        ],
+                        "enum": [
+                            "error",
+                            "ok",
+                            "warning"
+                        ]
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "TeamProjectReference": {
+            "type": [
+                "null",
+                "object"
+            ],
+            "properties": {
+                "id": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                },
+                "lastUpdateTime": {
+                    "type": [
+                        "null",
+                        "string"
+                    ],
+                    "format": "date-time"
+                },
+                "name": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                },
+                "revision": {
+                    "type": "number"
+                },
+                "state": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                },
+                "url": {
+                    "type": [
+                        "null",
+                        "string"
+                    ],
+                    "format": "uri"
+                },
+                "visibility": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                }
+            }
+        },
+        "DefinitionReference": {
+            "type": [
+                "null",
+                "object"
+            ],
+            "properties": {
+                "drafts": {
+                    "type": "array",
+                    "items": {
+                        "type": [
+                            "null",
+                            "object"
+                        ],
+                        "properties": {
+                            "id": {
+                                "type": "number"
+                            },
+                            "name": {
+                                "type": [
+                                    "null",
+                                    "string"
+                                ]
+                            },
+                            "path": {
+                                "type": [
+                                    "null",
+                                    "string"
+                                ]
+                            },
+                            "project": {
+                                "$ref": "#/definitions/TeamProjectReference"
+                            },
+                            "queueStatus": {
+                                "type": [
+                                    "null",
+                                    "string"
+                                ],
+                                "enum": [
+                                    "disabled",
+                                    "enabled",
+                                    "paused"
+                                ]
+                            },
+                            "revision": {
+                                "type": "number"
+                            },
+                            "type": {
+                                "type": [
+                                    "null",
+                                    "string"
+                                ],
+                                "enum": [
+                                    "build",
+                                    "xaml"
+                                ]
+                            },
+                            "uri": {
+                                "type": [
+                                    "null",
+                                    "string"
+                                ]
+                            },
+                            "url": {
+                                "type": [
+                                    "null",
+                                    "string"
+                                ],
+                                "format": "uri"
+                            }
+                        }
+                    }
+                },
+                "id": {
+                    "type": "number"
+                },
+                "name": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                },
+                "path": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                },
+                "project": {
+                    "$ref": "#/definitions/TeamProjectReference"
+                },
+                "queueStatus": {
+                    "type": [
+                        "null",
+                        "string"
+                    ],
+                    "enum": [
+                        "disabled",
+                        "enabled",
+                        "paused"
+                    ]
+                },
+                "revision": {
+                    "type": "number"
+                },
+                "type": {
+                    "type": [
+                        "null",
+                        "string"
+                    ],
+                    "enum": [
+                        "build",
+                        "xaml"
+                    ]
+                },
+                "uri": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                },
+                "url": {
+                    "type": [
+                        "null",
+                        "string"
+                    ],
+                    "format": "uri"
+                }
+            }
+        }
+    }
+}

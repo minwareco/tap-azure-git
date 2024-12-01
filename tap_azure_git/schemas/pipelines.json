@@ -1,0 +1,119 @@
+{
+    "type": [
+        "null",
+        "object"
+    ],
+    "additionalProperties": false,
+    "properties": {
+        "_sdc_repository": {
+            "type": [
+                "string"
+            ]
+        },
+        "_sdc_id": {
+            "type": [
+                "string"
+            ]
+        },
+        "_links": {
+            "type": [
+                "null",
+                "object"
+            ],
+            "properties": {
+                "self": {
+                    "type": [
+                        "null",
+                        "object"
+                    ],
+                    "properties": {
+                        "href": {
+                            "type": [
+                                "null",
+                                "string"
+                            ]
+                        }
+                    }
+                },
+                "web": {
+                    "type": [
+                        "null",
+                        "object"
+                    ],
+                    "properties": {
+                        "href": {
+                            "type": [
+                                "null",
+                                "string"
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "configuration": {
+            "type": [
+                "object",
+                "null"
+            ],
+            "properties": {
+                "path": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                },
+                "repository": {
+                    "type": [
+                        "null",
+                        "object"
+                    ],
+                    "properties": {
+                        "id": {
+                            "type": [
+                                "null",
+                                "string"
+                            ]
+                        },
+                        "type": {
+                            "type": [
+                                "null",
+                                "string"
+                            ]
+                        }
+                    }
+                },
+                "type": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                }
+            }
+        },
+        "folder": {
+            "type": [
+                "null",
+                "string"
+            ]
+        },
+        "id": {
+            "type": "number"
+        },
+        "name": {
+            "type": [
+                "null",
+                "string"
+            ]
+        },
+        "revision": {
+            "type": "number"
+        },
+        "url": {
+            "type": [
+                "null",
+                "string"
+            ]
+        }
+    }
+}

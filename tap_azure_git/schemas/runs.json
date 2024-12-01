@@ -1,0 +1,280 @@
+{
+    "type": "object",
+    "properties": {
+        "_sdc_repository": {
+            "type": [
+                "string"
+            ]
+        },
+        "_sdc_id": {
+            "type": [
+                "string"
+            ]
+        },
+        "_links": {
+            "type": [
+                "null",
+                "object"
+            ],
+            "properties": {
+                "pipeline": {
+                    "type": [
+                        "null",
+                        "object"
+                    ],
+                    "properties": {
+                        "href": {
+                            "type": [
+                                "null",
+                                "string"
+                            ],
+                            "format": "uri"
+                        }
+                    }
+                },
+                "pipeline.web": {
+                    "type": [
+                        "null",
+                        "object"
+                    ],
+                    "properties": {
+                        "href": {
+                            "type": [
+                                "null",
+                                "string"
+                            ],
+                            "format": "uri"
+                        }
+                    }
+                },
+                "self": {
+                    "type": [
+                        "null",
+                        "object"
+                    ],
+                    "properties": {
+                        "href": {
+                            "type": [
+                                "null",
+                                "string"
+                            ],
+                            "format": "uri"
+                        }
+                    }
+                },
+                "web": {
+                    "type": [
+                        "null",
+                        "object"
+                    ],
+                    "properties": {
+                        "href": {
+                            "type": [
+                                "null",
+                                "string"
+                            ],
+                            "format": "uri"
+                        }
+                    }
+                }
+            }
+        },
+        "createdDate": {
+            "type": [
+                "null",
+                "string"
+            ],
+            "format": "date-time"
+        },
+        "finishedDate": {
+            "type": [
+                "null",
+                "string"
+            ],
+            "format": "date-time"
+        },
+        "id": {
+            "type": "number"
+        },
+        "name": {
+            "type": [
+                "null",
+                "string"
+            ]
+        },
+        "pipeline": {
+            "type": [
+                "null",
+                "object"
+            ],
+            "properties": {
+                "folder": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                },
+                "id": {
+                    "type": "number"
+                },
+                "name": {
+                    "type": [
+                        "null",
+                        "string"
+                    ]
+                },
+                "revision": {
+                    "type": "number"
+                },
+                "url": {
+                    "type": [
+                        "null",
+                        "string"
+                    ],
+                    "format": "uri"
+                }
+            }
+        },
+        "resources": {
+            "type": [
+                "null",
+                "object"
+            ],
+            "properties": {
+                "repositories": {
+                    "type": [
+                        "null",
+                        "object"
+                    ],
+                    "properties": {
+                        "self": {
+                            "type": [
+                                "null",
+                                "object"
+                            ],
+                            "properties": {
+                                "refName": {
+                                    "type": [
+                                        "null",
+                                        "string"
+                                    ]
+                                },
+                                "repository": {
+                                    "type": [
+                                        "null",
+                                        "object"
+                                    ],
+                                    "properties": {
+                                        "fullName": {
+                                            "type": [
+                                                "null",
+                                                "string"
+                                            ]
+                                        },
+                                        "id": {
+                                            "type": [
+                                                "null",
+                                                "string"
+                                            ]
+                                        },
+                                        "type": {
+                                            "type": [
+                                                "null",
+                                                "string"
+                                            ]
+                                        }
+                                    }
+                                },
+                                "version": {
+                                    "type": [
+                                        "null",
+                                        "string"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "result": {
+            "type": [
+                "null",
+                "string"
+            ],
+            "enum": [
+                "canceled",
+                "failed",
+                "succeeded",
+                "unknown"
+            ]
+        },
+        "state": {
+            "type": [
+                "null",
+                "string"
+            ],
+            "enum": [
+                "canceling",
+                "completed",
+                "inProgress",
+                "unknown"
+            ]
+        },
+        "templateParameters": {
+            "type": [
+                "null",
+                "object"
+            ],
+            "additionalProperties": true
+        },
+        "url": {
+            "type": [
+                "null",
+                "string"
+            ],
+            "format": "uri"
+        },
+        "yamlDetails": {
+            "type": [
+                "null",
+                "object"
+            ],
+            "properties": {
+                "expandedYamlUrl": {
+                    "type": [
+                        "null",
+                        "string"
+                    ],
+                    "format": "uri"
+                },
+                "rootYamlFile": {
+                    "type": [
+                        "null",
+                        "object"
+                    ],
+                    "properties": {
+                        "ref": {
+                            "type": [
+                                "null",
+                                "string"
+                            ]
+                        },
+                        "repoAlias": {
+                            "type": [
+                                "null",
+                                "string"
+                            ]
+                        },
+                        "yamlFile": {
+                            "type": [
+                                "null",
+                                "string"
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
