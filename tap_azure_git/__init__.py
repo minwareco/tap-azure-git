@@ -195,7 +195,7 @@ def authed_get(source, url, headers={}):
         #logger.info("requesting {}".format(url))
         resp = session.request(method='get', url=url)
 
-        if resp.status_code != 200:
+        if resp.status_code not in [200, 204]:
             raise_for_error(resp, source, url)
         timer.tags[metrics.Tag.http_status_code] = resp.status_code
         rate_throttling(resp)
@@ -1138,6 +1138,12 @@ def get_build_timeline(schema, org, repo_path, build, state, mdata, start_date):
             "https://dev.azure.com/{}/{}/_apis/build/builds/{}/Timeline?api-version={}" \
                 .format(org, project, build['id'], API_VERSION_7_1)
         )
+
+        # if the build timeline is not available, azure-git returns an empty response
+        if build_timeline_response.status_code == 204:
+            logger.warn('Build timeline unavailable for {}/{} {}'.format(org, project, build['id']))
+            return state
+
         raw_build_timeline = build_timeline_response.json()
         sdc_repository = '{}/{}/{}'.format(org, project, repo_name)
         
@@ -1146,7 +1152,7 @@ def get_build_timeline(schema, org, repo_path, build, state, mdata, start_date):
             '_sdc_repository': sdc_repository,
             '_sdc_id': '{}/build/{}/timeline/{}'.format(sdc_repository, build['id'], raw_build_timeline['id'])
         }
-        
+
         with singer.Transformer() as transformer:
             rec = transformer.transform(build_timeline, schema, metadata=metadata.to_map(mdata))
         singer.write_record(stream_id, rec, time_extracted=extraction_time)
