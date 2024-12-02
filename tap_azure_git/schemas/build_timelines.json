@@ -163,7 +163,7 @@
                         "skipped",
                         "succeeded",
                         "succeededWithIssues",
-                        "null"
+                        null
                     ]
                 },
                 "resultCode": {

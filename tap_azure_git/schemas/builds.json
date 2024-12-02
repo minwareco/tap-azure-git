@@ -107,7 +107,10 @@
             ]
         },
         "buildNumberRevision": {
-            "type": "number"
+            "type": [
+                "null",
+                "number"
+            ]
         },
         "definition": {
             "$ref": "#/definitions/DefinitionReference"
