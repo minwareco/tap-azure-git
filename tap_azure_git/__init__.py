@@ -1150,7 +1150,8 @@ def get_build_timeline(schema, org, repo_path, build, state, mdata, start_date):
         build_timeline = {
             **raw_build_timeline,
             '_sdc_repository': sdc_repository,
-            '_sdc_id': '{}/build/{}/timeline/{}'.format(sdc_repository, build['id'], raw_build_timeline['id'])
+            '_sdc_id': '{}/build/{}/timeline/{}'.format(sdc_repository, build['id'], raw_build_timeline['id']),
+            'build_id': build['id']
         }
 
         with singer.Transformer() as transformer:
