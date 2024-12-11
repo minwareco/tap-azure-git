@@ -1107,7 +1107,7 @@ def get_all_pipeline_runs(schema, org, repo_path, pipeline, state, mdata, start_
                 **raw_run,
                 '_sdc_repository': sdc_repository,
                 '_sdc_id': '{}/run/{}'.format(sdc_repository, raw_run['id']),
-                '_sdc_parent_id': pipeline['_sdc_id'],
+                '_sdc_parent_id': '{}/pipeline/{}'.format(sdc_repository, pipeline['id'])
             }
             
             with singer.Transformer() as transformer:
@@ -1152,7 +1152,7 @@ def get_build_timeline(schema, org, repo_path, build, state, mdata, start_date):
             **raw_build_timeline,
             '_sdc_repository': sdc_repository,
             '_sdc_id': '{}/timeline/{}'.format(sdc_repository, raw_build_timeline['id']),
-            '_sdc_parent_id': build['_sdc_id']
+            '_sdc_parent_id': '{}/build/{}'.format(sdc_repository, build['id']),
         }
 
         with singer.Transformer() as transformer:
