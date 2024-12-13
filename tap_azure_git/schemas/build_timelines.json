@@ -14,7 +14,7 @@
                 "string"
             ]
         },
-        "build_id": {
+        "_sdc_parent_id": {
             "type": [
                 "string"
             ]
