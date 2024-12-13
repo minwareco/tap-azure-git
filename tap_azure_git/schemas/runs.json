@@ -11,6 +11,11 @@
                 "string"
             ]
         },
+        "_sdc_parent_id": {
+            "type": [
+                "string"
+            ]
+        },
         "_links": {
             "type": [
                 "null",
