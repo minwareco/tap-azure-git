@@ -922,14 +922,8 @@ def get_all_pull_requests(schemas, org, repo_path, state, mdata, start_date):
                 # unique, but, surprise surprise, the API doesn't actually include this property
                 # when listing multiple PRs, so we need to construct it from the URL. Hilariously,
                 # this ID also contains %2f for the later slashes instead of actual slashes.
-                # Get the project_id and repo_id from the URL
-                # TODO: not sure what type of exception to throw here if if the url isn't present
-                # and matching this format.
-                url_search = re.search('dev\\.azure\\.com/\w+/([-\w]+)/_apis/git/repositories/([-\w]+)', pr['url'])
-                project_id = url_search.group(1)
-                repo_id = url_search.group(2)
                 pr['artifactId'] = "vstfs:///Git/PullRequestId/{}%2f{}%2f{}" \
-                    .format(project_id, repo_id, prid)
+                    .format(pr['repository']['project']['id'], pr['repository']['id'], prid)
 
                 with singer.Transformer() as transformer:
                     rec = transformer.transform(pr, schemas['pull_requests'], metadata=metadata.to_map(mdata))
