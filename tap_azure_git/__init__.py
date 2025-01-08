@@ -950,10 +950,10 @@ def transform_repo_to_write(org, repo):
         'org_name': org,
         'repo_name': '{}/{}'.format(project_name, repo_name),
         'is_source_public': repo['project']['visibility'] == 'public',
-        'default_branch': repo['defaultBranch'] if 'defaultBranch' in repo else "",
+        'default_branch': repo['defaultBranch'] if 'defaultBranch' in repo else '',
         'fork_org_name': None,
         'fork_repo_name': None,
-        'description': repo['description']
+        'description': repo['description'] if 'description' in repo else ''
     }
 
 def get_all_repositories(schema, org, repo_path, state, mdata, start_date):
