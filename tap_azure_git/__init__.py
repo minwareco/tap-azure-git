@@ -939,12 +939,44 @@ def get_all_pull_requests(schemas, org, repo_path, state, mdata, start_date):
 
     return state
 
+def transform_repo_to_write(org, repo):
+    project_name = repo['project']['name']
+    repo_name = repo['name']
+
+    return {
+        '_sdc_repository': '{}/{}/{}'.format(org, project_name, repo_name),
+        'id': '{}/{}/{}/{}'.format('azure-git', org, project_name, repo_name),
+        'source': 'azure-git',
+        'org_name': org,
+        'repo_name': '{}/{}'.format(project_name, repo_name),
+        'is_source_public': repo['project']['visibility'] == 'public',
+        'default_branch': repo['defaultBranch'] if 'defaultBranch' in repo else "",
+        'fork_org_name': None,
+        'fork_repo_name': None,
+        'description': repo['description']
+    }
+
 def get_all_repositories(schema, org, repo_path, state, mdata, start_date):
     # Don't bookmark this one for now
-    
-    with metrics.record_counter('repositories') as counter:
-        extraction_time = singer.utils.now()
+    extraction_time = singer.utils.now()
 
+    repo_split = repo_path.split('/')
+    project_name = repo_split[0]
+    repo_name = repo_split[1]
+
+    repos_to_write = []
+    if not process_globals \
+        and repo_path != '*/*' \
+        and repo_path != '':
+        repository_response = authed_get(
+            'repository',
+            "https://dev.azure.com/{}/{}/_apis/git/repositories/{}?api-version={}"
+                .format(org, project_name, repo_name, API_VERSION)
+        )
+        repos_to_write.append(
+            transform_repo_to_write(org, repository_response.json())
+        )
+    else:
         for response in authed_get_all_pages(
             'projects',
             "https://dev.azure.com/{}/_apis/projects?" \
@@ -957,43 +989,28 @@ def get_all_repositories(schema, org, repo_path, state, mdata, start_date):
             projects = response.json()['value']
             for project in projects:
                 projectName = project['name']
-                for response in authed_get_all_pages(
+                # while _api/get/repositories is a "list" endpoint
+                # it is not paginated. Using authed_get_all_pages will
+                # cause the endpoint to be hit infinitely until azure-git cuts us off.
+                repositories_response = authed_get(
                     'repositories',
-                    "https://dev.azure.com/{}/{}/_apis/git/repositories?" \
-                    "api-version={}" \
-                    .format(org, projectName, API_VERSION),
-                    '$top',
-                    '$skip',
-                    True # No link header to indicate availability of more data
-                ):
-                    repos = response.json()['value']
-                    for repo in repos:
-                        repoName = repo['name']
-                        if not process_globals:
-                            if repo_path != '*/*' and repo_path != '' and '{}/{}'.format(projectName, repoName) != repo_path:
-                                continue
+                    "https://dev.azure.com/{}/{}/_apis/git/repositories?api-version={}"
+                        .format(org, projectName, API_VERSION)
+                )
+                repos_to_write.extend(
+                    [transform_repo_to_write(org, repo) \
+                        for repo in repositories_response.json()['value'] \
+                        if repo['isDisabled'] != True]
+                )
 
-                        # repos that are disabled do not have code access
-                        if repo['isDisabled']:
-                            continue
+    with metrics.record_counter('repositories') as counter:
+        for repo_to_write in repos_to_write:
+            with singer.Transformer() as transformer:
+                rec = transformer.transform(repo_to_write, schema,
+                    metadata=metadata.to_map(mdata))
+            singer.write_record('repositories', rec, time_extracted=extraction_time)
+            counter.increment()
 
-                        repo['_sdc_repository'] = '{}/{}/{}'.format(org, projectName, repoName)
-                        repo['id'] = '{}/{}/{}/{}'.format('azure-git', org, projectName, repoName)
-                        repo['source'] = 'azure-git'
-                        repo['org_name'] = org
-                        repo['repo_name'] = '{}/{}'.format(projectName, repoName)
-                        repo['is_source_public'] = repo['project']['visibility'] == 'public'
-                        repo['default_branch'] = repo['defaultBranch'] if 'defaultBranch' in repo else ""
-                        # TODO: handle forks
-                        repo['fork_org_name'] = None
-                        repo['fork_repo_name'] = None
-                        repo['description'] = ''
-
-                        with singer.Transformer() as transformer:
-                            rec = transformer.transform(repo, schema,
-                                metadata=metadata.to_map(mdata))
-                        singer.write_record('repositories', rec, time_extracted=extraction_time)
-                        counter.increment()
     return state
 
 def get_all_pipelines(schema, org, repo_path, state, mdata, start_date):
