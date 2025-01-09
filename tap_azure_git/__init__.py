@@ -11,11 +11,13 @@ import time
 import urllib.parse
 from datetime import datetime
 from operator import itemgetter
+from contextlib import suppress
 
 # 3rd Party
 import psutil
 import pytz
 import requests
+import backoff
 import singer
 import singer.bookmarks as bookmarks
 import singer.metrics as metrics
@@ -164,42 +166,93 @@ def raise_for_error(resp, source, url):
             .get("message", "Unknown Error") if response_json == {} else response_json, \
             url)
 
+        # Map HTTP version numbers
+        http_versions = {
+            10: "HTTP/1.0",
+            11: "HTTP/1.1",
+            20: "HTTP/2.0"
+        }
+        http_version = http_versions.get(resp.raw.version, "Unknown")
+        message += "\nResponse Details: \n\t{} {}".format(http_version, resp.status_code)
+        for key, value in resp.headers.items():
+            message += "\n\t{}: {}".format(key, value)
+        if resp.content:
+            message += "\n\t{}".format(resp.text)
+
     exc = ERROR_CODE_EXCEPTION_MAPPING.get(error_code, {}).get("raise_exception", AzureException)
     raise exc(message) from None
 
-def calculate_seconds(epoch):
-    current = time.time()
-    return int(round((epoch - current), 0))
+def get_backoff_value_generator():
+    tries = 0
+    def backoff_value(response):
+        nonlocal tries
+        tries += 1
+        with suppress(ValueError, AttributeError):
+            return int(response.headers.get("Retry-After"))
+        return 30 * (2 ** tries)
 
-def rate_throttling(response):
-    '''
-    See documentation here, which recommends at least sleeping if a Retry-After header is sent.
+    return backoff_value
 
-    https://docs.microsoft.com/en-us/azure/devops/integrate/concepts/rate-limits?view=azure-devops
-    '''
-    if 'Retry-After' in response.headers:
-        waitTime = int(response.headers['Retry-After'])
-        if waitTime < 1:
-            # Probably should never happen, but sleep at least one second if this header for some
-            # reason isn't a valid int or is less than 1
-            waitTime = 1
-        logger.info("API Retry-After wait time header found, sleeping for {} seconds." \
-            .format(waitTime))
-        time.sleep(waitTime)
+@backoff.on_exception(backoff.expo,
+                      (requests.exceptions.RequestException),
+                      max_tries=5,
+                      giveup=lambda e: e.response is not None and e.response.status_code != 429 and 400 <= e.response.status_code < 500,
+                      factor=5,
+                      jitter=backoff.random_jitter,
+                      logger=logger)
+@backoff.on_predicate(backoff.runtime,
+                      predicate=lambda r: r.headers.get("Retry-After", None) != None or r.status_code >= 300,
+                      max_tries=5,
+                      value=get_backoff_value_generator(),
+                      jitter=backoff.random_jitter,
+                      logger=logger)
+def request(url, method='GET'):
+    """
+    This function performs an HTTP request and implements a robust retry mechanism
+    to handle transient errors and optimize the request's success rate.
+
+    Key Features:
+    1. **Retry on Predicate (Retry-After Header)**:
+    - Retries when the response contains a "Retry-After" header, which is commonly used
+        to indicate when a client should retry a request.
+    - This is particularly useful for Azure, which may include "Retry-After" headers
+        for both 429 (Too Many Requests) and 5xx (Server Error) responses.
+    - A maximum of 8 retry attempts is made, respecting the "Retry-After" value
+        specified in the header.
+
+    2. **Retry on Exceptions**:
+    - Retries when a `requests.exceptions.RequestException` occurs.
+    - Uses an exponential backoff strategy (doubling the delay between retries)
+        with a maximum of 5 retry attempts.
+    - Stops retrying if the exception is due to a client-side error (HTTP 4xx),
+        as these are typically non-recoverable. The single exception is 429 (Too Many Requests).
+
+    Parameters:
+    - `url` (str): The URL to which the HTTP request is sent.
+    - `method` (str, optional): The HTTP method to use (default is 'GET').
+
+    Returns:
+    - `response` (requests.Response): The HTTP response object.
+
+    Notes:
+    - This function leverages the `backoff` library for retry strategies and logging.
+    - A session object (assumed to be pre-configured) is used for making the HTTP request.
+    """
+    return session.request(method=method, url=url)
 
 # pylint: disable=dangerous-default-value
 def authed_get(source, url, headers={}):
     with metrics.http_request_timer(source) as timer:
         session.headers.update(headers)
-        # Uncomment for debugging
-        #logger.info("requesting {}".format(url))
-        resp = session.request(method='get', url=url)
+        resp = request(url, method='get')
 
         if resp.status_code not in [200, 204]:
             raise_for_error(resp, source, url)
+
+        timer.tags["url"] = url
         timer.tags[metrics.Tag.http_status_code] = resp.status_code
-        rate_throttling(resp)
-        return resp
+
+    return resp
 
 PAGE_SIZE = 100
 def authed_get_all_pages(source, url, page_param_name='', skip_param_name='',
@@ -664,7 +717,7 @@ def get_all_commit_files(schemas, org, repo_path, state, mdata, start_date, gitL
                             metadata=metadata.to_map(mdata))
                     counter.increment()
                     singer.write_record('annotated_tags', rec, time_extracted=extraction_time)
-                
+
             else:
                 headsToCommits[h] = {
                     'type': 'commit',
@@ -840,7 +893,7 @@ def get_pull_request_heads(org, repo_path):
     reposplit = repo_path.split('/')
     project = reposplit[0]
     project_repo = reposplit[1]
-    
+
     heads = {}
 
     for response in authed_get_all_pages(
@@ -1062,7 +1115,7 @@ def get_all_pipelines(schema, org, repo_path, state, mdata, start_date):
                     '_sdc_repository': sdc_repository,
                     '_sdc_id': '{}/pipeline/{}'.format(sdc_repository, raw_pipeline['id'])
                 }
-                
+
                 with singer.Transformer() as transformer:
                     rec = transformer.transform(pipeline, schema,
                         metadata=metadata.to_map(mdata))
@@ -1111,7 +1164,7 @@ def get_all_pipeline_runs(schema, org, repo_path, pipeline, state, mdata, start_
                 "https://dev.azure.com/{}/{}/_apis/pipelines/{}/runs/{}?api-version={}" \
                     .format(org, project, pipeline['id'], run_list_item['id'], API_VERSION_7_1)
             )
-            
+
             raw_run = run_response.json()
             sdc_repository = '{}/{}/{}'.format(org, project, repo_name)
             run = {
@@ -1120,14 +1173,14 @@ def get_all_pipeline_runs(schema, org, repo_path, pipeline, state, mdata, start_
                 '_sdc_id': '{}/pipeline/{}/run/{}'.format(sdc_repository, pipeline['id'], raw_run['id']),
                 '_sdc_parent_id': '{}/pipeline/{}'.format(sdc_repository, pipeline['id'])
             }
-            
+
             with singer.Transformer() as transformer:
                 rec = transformer.transform(run, schema, metadata=metadata.to_map(mdata))
             singer.write_record('runs', rec, time_extracted=extraction_time)
             counter.increment()
-    
+
         singer.write_bookmark(state, repo_path, 'pipeline', { bookmark_key: singer.utils.strftime(extraction_time) })
-    
+
     return state
 
 def is_build_after_time(build, time_to_compare):
@@ -1158,7 +1211,7 @@ def get_build_timeline(schema, org, repo_path, build, state, mdata, start_date):
 
         raw_build_timeline = build_timeline_response.json()
         sdc_repository = '{}/{}/{}'.format(org, project, repo_name)
-        
+
         build_timeline = {
             **raw_build_timeline,
             '_sdc_repository': sdc_repository,
@@ -1215,7 +1268,7 @@ def get_all_builds(schema, org, repo_path, state, mdata, start_date):
                 for build in builds
                 if is_build_after_time(build, bookmarkTime)
             ]
-            
+
             for build in builds_to_write:
                 rec = transformer.transform(build, schema,
                         metadata=metadata.to_map(mdata))
@@ -1228,11 +1281,11 @@ def get_all_builds(schema, org, repo_path, state, mdata, start_date):
             # the API is ordered, as soon as we find an item that finished before our bookmark, stop iterating
             if len(builds_to_write) < len(builds):
                 break
-    
+
         singer.write_bookmark(state, repo_path, stream_id, {
             bookmark_key: singer.utils.strftime(extraction_time)
         })
-    
+
     return state
 
 def get_selected_streams(catalog):
