@@ -11,7 +11,7 @@ setup(name='tap-azure-git',
       classifiers=['Programming Language :: Python :: 3 :: Only'],
       py_modules=['tap_azure_git'],
       install_requires=[
-          'singer-python==5.12.1',
+          'singer-python==6.1.0',
           'requests==2.20.0',
           'psutil==5.8.0',
           'gitlocal@git+https://{}@github.com/minwareco/gitlocal.git'.format(os.environ.get("GITHUB_TOKEN", ""))
