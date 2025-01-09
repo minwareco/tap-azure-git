@@ -11,6 +11,7 @@ import time
 import urllib.parse
 from datetime import datetime
 from operator import itemgetter
+from contextlib import suppress
 
 # 3rd Party
 import psutil
@@ -165,8 +166,33 @@ def raise_for_error(resp, source, url):
             .get("message", "Unknown Error") if response_json == {} else response_json, \
             url)
 
+        # Map HTTP version numbers
+        http_versions = {
+            10: "HTTP/1.0",
+            11: "HTTP/1.1",
+            20: "HTTP/2.0"
+        }
+        http_version = http_versions.get(resp.raw.version, "Unknown")
+        message += "\nResponse Details: \n\t{} {}".format(http_version, resp.status_code)
+        for key, value in resp.headers.items():
+            message += "\n\t{}: {}".format(key, value)
+        if resp.content:
+            message += "\n\t{}".format(resp.text)
+
     exc = ERROR_CODE_EXCEPTION_MAPPING.get(error_code, {}).get("raise_exception", AzureException)
     raise exc(message) from None
+
+def get_backoff_value_generator():
+    tries = 0
+    def backoff_value(response):
+        nonlocal tries
+        tries += 1
+        if tries % 2 == 0:
+            with suppress(ValueError, AttributeError):
+                return int(response.headers.get("Retry-After"))
+        return 30 * (2 ** tries)
+
+    return backoff_value
 
 @backoff.on_exception(backoff.expo,
                       (requests.exceptions.RequestException),
@@ -176,9 +202,9 @@ def raise_for_error(resp, source, url):
                       jitter=backoff.random_jitter,
                       logger=logger)
 @backoff.on_predicate(backoff.runtime,
-                      predicate=lambda r: r.headers.get("Retry-After"),
+                      predicate=lambda r: r.headers.get("Retry-After", None) != None or r.status_code >= 300,
                       max_tries=5,
-                      value=lambda r: int(r.headers.get("Retry-After")),
+                      value=get_backoff_value_generator(),
                       jitter=backoff.random_jitter,
                       logger=logger)
 def request(url, method='GET'):
