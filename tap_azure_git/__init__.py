@@ -187,7 +187,7 @@ def get_backoff_value_generator():
     def backoff_value(response):
         nonlocal tries
         tries += 1
-        with suppress(ValueError, AttributeError):
+        with suppress(TypeError, ValueError, AttributeError):
             return int(response.headers.get("Retry-After"))
         return 30 * (2 ** tries)
 
@@ -206,7 +206,7 @@ def get_backoff_value_generator():
                       value=get_backoff_value_generator(),
                       jitter=backoff.random_jitter,
                       logger=logger)
-def request(url, method='GET'):
+def request(source, url, method='GET'):
     """
     This function performs an HTTP request and implements a robust retry mechanism
     to handle transient errors and optimize the request's success rate.
@@ -228,6 +228,7 @@ def request(url, method='GET'):
         as these are typically non-recoverable. The single exception is 429 (Too Many Requests).
 
     Parameters:
+    - `source` (str): The source that is triggering the HTTP request.
     - `url` (str): The URL to which the HTTP request is sent.
     - `method` (str, optional): The HTTP method to use (default is 'GET').
 
@@ -238,19 +239,27 @@ def request(url, method='GET'):
     - This function leverages the `backoff` library for retry strategies and logging.
     - A session object (assumed to be pre-configured) is used for making the HTTP request.
     """
-    return session.request(method=method, url=url)
+    with metrics.http_request_timer(source) as timer:
+        timer.tags['url'] = url
+
+        response = session.request(method=method, url=url)
+
+        timer.tags[metrics.Tag.http_status_code] = response.status_code
+        timer.tags['header_retry-after'] = response.headers.get('retry-after')
+        timer.tags['header_x-ratelimit-resource'] = response.headers.get('x-ratelimit-resource')
+        timer.tags['header_x-ratelimit-delay'] = response.headers.get('x-ratelimit-delay')
+        timer.tags['header_x-ratelimit-limit'] = response.headers.get('x-ratelimit-limit')
+        timer.tags['header_x-ratelimit-remaining'] = response.headers.get('x-ratelimit-remaining')
+        timer.tags['header_x-ratelimit-reset'] = response.headers.get('x-ratelimit-reset')
+        return response
 
 # pylint: disable=dangerous-default-value
 def authed_get(source, url, headers={}):
-    with metrics.http_request_timer(source) as timer:
-        session.headers.update(headers)
-        resp = request(url, method='get')
+    session.headers.update(headers)
+    resp = request(source, url, method='get')
 
-        if resp.status_code not in [200, 204]:
-            raise_for_error(resp, source, url)
-
-        timer.tags["url"] = url
-        timer.tags[metrics.Tag.http_status_code] = resp.status_code
+    if resp.status_code not in [200, 204]:
+        raise_for_error(resp, source, url)
 
     return resp
 
