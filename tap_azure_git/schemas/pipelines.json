@@ -107,7 +107,10 @@
             ]
         },
         "revision": {
-            "type": "number"
+            "type": [
+                "null",
+                "number"
+            ]
         },
         "url": {
             "type": [

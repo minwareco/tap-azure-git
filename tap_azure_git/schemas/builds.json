@@ -98,7 +98,10 @@
             }
         },
         "appendCommitMessageToRunName": {
-            "type": "boolean"
+            "type": [
+                "boolean",
+                "null"
+            ]
         },
         "buildNumber": {
             "type": [
@@ -288,7 +291,10 @@
                     ]
                 },
                 "revision": {
-                    "type": "number"
+                    "type": [
+                        "number",
+                        "null"
+                    ]
                 },
                 "state": {
                     "type": [
@@ -363,7 +369,10 @@
                             "type": "number"
                         },
                         "isHosted": {
-                            "type": "boolean"
+                            "type": [
+                                "null",
+                                "boolean"
+                            ]
                         },
                         "name": {
                             "type": [
@@ -395,7 +404,10 @@
             ],
             "properties": {
                 "checkoutSubmodules": {
-                    "type": "boolean"
+                    "type": [
+                        "null",
+                        "boolean"
+                    ]
                 },
                 "clean": {},
                 "id": {
@@ -557,7 +569,10 @@
             ]
         },
         "retainedByRelease": {
-            "type": "boolean"
+            "type": [
+                "null",
+                "boolean"
+            ]
         },
         "sourceBranch": {
             "type": [
