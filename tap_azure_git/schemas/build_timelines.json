@@ -47,7 +47,10 @@
             "format": "uuid"
         },
         "changeId": {
-            "type": "number"
+            "type": [
+                "null",
+                "number"
+            ]
         },
         "url": {
             "type": [
