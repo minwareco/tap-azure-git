@@ -799,7 +799,7 @@ def get_all_commit_files(schemas, org, repo_path, state, mdata, start_date, gitL
 
             offset = 0
             while True:
-                commits = gitLocal.getCommitsFromHeadPyGit(repo_path, headSha,
+                commits = gitLocal.getCommitsFromHeadPyGit(gitLocalRepoPath, headSha,
                     limit = LOG_PAGE_SIZE, offset = offset, skipAtCommits=fetchedCommits)
 
                 extraction_time = singer.utils.now()
