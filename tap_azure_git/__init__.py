@@ -798,6 +798,7 @@ def get_all_commit_files(schemas, org, repo_path, state, mdata, start_date, gitL
 
 
             offset = 0
+            newlyFetchedCommits = {}
             while True:
                 commits = gitLocal.getCommitsFromHeadPyGit(gitLocalRepoPath, headSha,
                     limit = LOG_PAGE_SIZE, offset = offset, skipAtCommits=fetchedCommits)
@@ -805,19 +806,19 @@ def get_all_commit_files(schemas, org, repo_path, state, mdata, start_date, gitL
                 extraction_time = singer.utils.now()
                 for commit in commits:
                     # Skip commits we've already imported
-                    if commit['sha'] in fetchedCommits:
+                    if commit['sha'] in fetchedCommits or commit['sha'] in newlyFetchedCommits:
                         continue
 
                     commitQ.append(commit)
 
                     # Record that we have now fetched this commit
-                    fetchedCommits[commit['sha']] = 1
+                    newlyFetchedCommits[commit['sha']] = 1
                     # No longer a missing parent
                     missingParents.pop(commit['sha'], None)
 
                     # Keep track of new missing parents
                     for parent in commit['parents']:
-                        if not parent['sha'] in fetchedCommits:
+                        if not parent['sha'] in fetchedCommits and not parent['sha'] in newlyFetchedCommits:
                             missingParents[parent['sha']] = 1
 
                 # If there are no missing parents, then we are done prior to reaching the lst page
@@ -831,6 +832,9 @@ def get_all_commit_files(schemas, org, repo_path, state, mdata, start_date, gitL
                     raise AzureException('Some commit parents never found: ' + \
                         ','.join(missingParents.keys()))
                 # Otherwise, proceed to fetch the next page with the next iteration state
+
+            # After successfully processing all commits for this head, add them to fetchedCommits
+            fetchedCommits.update(newlyFetchedCommits)
 
         # Now run through all the commits in parallel
         gc.collect()
