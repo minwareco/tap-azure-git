@@ -23,10 +23,11 @@ import singer.bookmarks as bookmarks
 import singer.metrics as metrics
 from dateutil import parser
 from gitlocal import GitLocal
+from gitlocal.logging import SecureLogger
 from singer import metadata
 
 session = requests.Session()
-logger = singer.get_logger()
+logger = SecureLogger(singer.get_logger())
 
 REQUIRED_CONFIG_KEYS = ['start_date', 'user_name', 'access_token', 'org', 'repository']
 
@@ -1453,6 +1454,7 @@ def main():
     # Initialize basic auth
     user_name = args.config['user_name']
     access_token = args.config['access_token']
+    logger.addToken(access_token)
     session.auth = (user_name, access_token)
 
     if args.discover:
