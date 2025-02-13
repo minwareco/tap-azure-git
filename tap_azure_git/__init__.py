@@ -22,11 +22,11 @@ import singer
 import singer.bookmarks as bookmarks
 import singer.metrics as metrics
 from dateutil import parser
-from gitlocal import GitLocal
+from minware_singer_utils import GitLocal, SecureLogger
 from singer import metadata
 
 session = requests.Session()
-logger = singer.get_logger()
+logger = SecureLogger(singer.get_logger())
 
 REQUIRED_CONFIG_KEYS = ['start_date', 'user_name', 'access_token', 'org', 'repository']
 
@@ -1387,7 +1387,7 @@ def do_sync(config, state, catalog):
         'workingDir': '/tmp',
     }, 'https://{}@' + domain + '/{}', # repo is format: {org}/{project}/{repo}
         config['hmac_token'] if 'hmac_token' in config else None,
-        logger=logger.getChild('GitLocal'))
+        logger)
 
     processed_repositories = False
     #pylint: disable=too-many-nested-blocks
@@ -1453,6 +1453,7 @@ def main():
     # Initialize basic auth
     user_name = args.config['user_name']
     access_token = args.config['access_token']
+    logger.addToken(access_token)
     session.auth = (user_name, access_token)
 
     if args.discover:
