@@ -22,8 +22,7 @@ import singer
 import singer.bookmarks as bookmarks
 import singer.metrics as metrics
 from dateutil import parser
-from gitlocal import GitLocal
-from gitlocal.logging import SecureLogger
+from minware_singer_utils import GitLocal, SecureLogger
 from singer import metadata
 
 session = requests.Session()
