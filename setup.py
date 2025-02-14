@@ -4,6 +4,8 @@ import os
 
 from setuptools import setup, find_packages
 
+UTILS_VERSION = "22f493552c4eb46b2b5a6d98d7acacd9fb7edf68"
+
 setup(name='tap-azure-git',
       version='0.1',
       description='Singer tap for Azure DevOps API Git data',
@@ -14,7 +16,10 @@ setup(name='tap-azure-git',
           'singer-python==6.1.0',
           'requests==2.20.0',
           'psutil==5.8.0',
-          'gitlocal@git+https://{}@github.com/minwareco/gitlocal.git'.format(os.environ.get("GITHUB_TOKEN", ""))
+          'minware_singer_utils@git+https://{}github.com/minwareco/minware-singer-utils.git@{}'.format(
+              "{}@".format(os.environ.get("GITHUB_TOKEN")) if os.environ.get("GITHUB_TOKEN") else "",
+              UTILS_VERSION
+          )
       ],
       extras_require={
           'dev': [
