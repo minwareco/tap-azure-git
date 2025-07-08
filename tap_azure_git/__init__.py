@@ -36,6 +36,7 @@ KEY_PROPERTIES = {
     'pull_request_threads': ['id'],
     'refs': ['id'],
     'commit_files': ['id'],
+    'commit_files_meta': ['id'],
     'repositories': ['id'],
     'annotated_tags': ['id'],
     'builds': ['_sdc_id'],
@@ -591,26 +592,30 @@ def get_all_commits(schema, org, repo_path, state, mdata, start_date):
     return state
 
 
-def get_commit_detail_local(commit, gitLocalRepoPath, gitLocal):
+def get_commit_detail_local(commit, gitLocalRepoPath, gitLocal, commits_only=False):
     try:
-        changes = gitLocal.getCommitDiff(gitLocalRepoPath, commit['sha'])
-        commit['files'] = changes
+        if commits_only:
+            # In commit-only mode, skip file diff processing and return empty files list
+            commit['files'] = []
+        else:
+            changes = gitLocal.getCommitDiff(gitLocalRepoPath, commit['sha'])
+            commit['files'] = changes
     except Exception as e:
         # This generally shouldn't happen since we've already fetched and checked out the head
         # commit successfully, so it probably indicates some sort of system error. Just let it
         # bubbl eup for now.
         raise e
 
-def get_commit_changes(commit, sdcRepository, gitLocalRepoPath, gitLocal):
-    get_commit_detail_local(commit, gitLocalRepoPath, gitLocal)
+def get_commit_changes(commit, sdcRepository, gitLocalRepoPath, gitLocal, commits_only=False):
+    get_commit_detail_local(commit, gitLocalRepoPath, gitLocal, commits_only)
     commit['_sdc_repository'] = sdcRepository
     commit['id'] = '{}/{}'.format(sdcRepository, commit['sha'])
     return commit
 
-async def getChangedfilesForCommits(commits, sdcRepository, gitLocalRepoPath, gitLocal):
+async def getChangedfilesForCommits(commits, sdcRepository, gitLocalRepoPath, gitLocal, commits_only=False):
     coros = []
     for commit in commits:
-        changesCoro = asyncio.to_thread(get_commit_changes, commit, sdcRepository, gitLocalRepoPath, gitLocal)
+        changesCoro = asyncio.to_thread(get_commit_changes, commit, sdcRepository, gitLocalRepoPath, gitLocal, commits_only)
         coros.append(changesCoro)
     results = await asyncio.gather(*coros)
     return results
@@ -670,7 +675,7 @@ def get_all_heads_for_commits(repo_path):
     return head_set
     '''
 
-def get_all_commit_files(schemas, org, repo_path, state, mdata, start_date, gitLocal, heads):
+def get_all_commit_files(schemas, org, repo_path, state, mdata, start_date, gitLocal, heads, commits_only=False):
     '''
     repo_path should be the full _sdc_repository path of {org}/{project}/{repo}
     '''
@@ -681,12 +686,13 @@ def get_all_commit_files(schemas, org, repo_path, state, mdata, start_date, gitL
     sdcRepository = '{}/{}/{}'.format(org, project, project_repo)
     gitLocalRepoPath = urllib.parse.quote('{}/{}/_git/{}'.format(org, project, project_repo))
 
-    bookmark = get_bookmark(state, repo_path, "commit_files", "since", start_date)
+    stream_name = 'commit_files_meta' if commits_only else 'commit_files'
+    bookmark = get_bookmark(state, repo_path, stream_name, "since", start_date)
     if not bookmark:
         bookmark = '1970-01-01'
 
     # Get the set of all commits we have fetched previously
-    fetchedCommits = get_bookmark(state, repo_path, "commit_files", "fetchedCommits")
+    fetchedCommits = get_bookmark(state, repo_path, stream_name, "fetchedCommits")
     if not fetchedCommits:
         fetchedCommits = {}
     else:
@@ -752,7 +758,7 @@ def get_all_commit_files(schemas, org, repo_path, state, mdata, start_date, gitL
     count = 0
     # The large majority of PRs are less than this many commits
     LOG_PAGE_SIZE = 10000
-    with metrics.record_counter('commit_files') as counter:
+    with metrics.record_counter(stream_name) as counter:
         # First, walk through all the heads and queue up all the commits that need to be imported
         commitQ = []
 
@@ -853,13 +859,13 @@ def get_all_commit_files(schemas, org, repo_path, state, mdata, start_date, gitL
             # Slice off the queue to avoid memory leaks
             curQ = commitQ[0:BATCH_SIZE]
             commitQ = commitQ[BATCH_SIZE:]
-            changedFileList = asyncio.run(getChangedfilesForCommits(curQ, sdcRepository, gitLocalRepoPath, gitLocal))
+            changedFileList = asyncio.run(getChangedfilesForCommits(curQ, sdcRepository, gitLocalRepoPath, gitLocal, commits_only))
             for commitfiles in changedFileList:
                 with singer.Transformer() as transformer:
-                    rec = transformer.transform(commitfiles, schemas['commit_files'],
+                    rec = transformer.transform(commitfiles, schemas[stream_name],
                         metadata=metadata.to_map(mdata))
                 counter.increment()
-                singer.write_record('commit_files', rec, time_extracted=extraction_time)
+                singer.write_record(stream_name, rec, time_extracted=extraction_time)
 
             finishedCount += BATCH_SIZE
             if i % (BATCH_SIZE * PRINT_INTERVAL) == 0:
@@ -874,7 +880,7 @@ def get_all_commit_files(schemas, org, repo_path, state, mdata, start_date, gitL
 
     # Don't write until the end so that we don't record fetchedCommits if we fail and never get
     # their parents.
-    singer.write_bookmark(state, repo_path, 'commit_files', {
+    singer.write_bookmark(state, repo_path, stream_name, {
         'since': singer.utils.strftime(extraction_time),
         'fetchedCommits': fetchedCommits
     })
@@ -1337,6 +1343,7 @@ def get_stream_from_catalog(stream_id, catalog):
 SYNC_FUNCTIONS = {
     'commits': get_all_commits,
     'commit_files': get_all_commit_files,
+    'commit_files_meta': get_all_commit_files,
     'pull_requests': get_all_pull_requests,
     'repositories': get_all_repositories,
     'builds': get_all_builds,
@@ -1382,12 +1389,14 @@ def do_sync(config, state, catalog):
 
 
     domain = config['pull_domain'] if 'pull_domain' in config else 'dev.azure.com'
+    commits_only = config.get('commits_only', False)
     gitLocal = GitLocal({
         'access_token': config['access_token'],
         'workingDir': '/tmp',
     }, 'https://{}@' + domain + '/{}', # repo is format: {org}/{project}/{repo}
         config['hmac_token'] if 'hmac_token' in config else None,
-        logger)
+        logger,
+        commitsOnly=commits_only)
 
     processed_repositories = False
     #pylint: disable=too-many-nested-blocks
@@ -1433,13 +1442,13 @@ def do_sync(config, state, catalog):
                                                 sub_stream['key_properties'])
 
                     # sync stream and its sub streams
-                    if stream_id == 'commit_files':
+                    if stream_id == 'commit_files' or stream_id == 'commit_files_meta':
                         heads = get_pull_request_heads(org, repo)
                         # We don't need to also get open branch heads here becuase those are
                         # included in the git clone --mirror, though PR heads for merged PRs are
                         # not included.
                         state = sync_func(stream_schemas, org, repo, state, mdata, start_date,
-                            gitLocal, heads)
+                            gitLocal, heads, commits_only)
                     else:
                         state = sync_func(stream_schemas, org, repo, state, mdata, start_date)
 
