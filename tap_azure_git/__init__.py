@@ -1463,12 +1463,12 @@ def do_sync(config, state, catalog):
                                                 sub_stream['key_properties'])
 
                     # sync stream and its sub streams
-                    if stream_id == 'commit_files' or stream_id == 'commit_files_meta':
+                    if stream_id == 'commit_files':
                         heads = get_pull_request_heads(org, repo)
                         # We don't need to also get open branch heads here becuase those are
                         # included in the git clone --mirror, though PR heads for merged PRs are
                         # not included.
-                        commits_only = stream_id == 'commit_files_meta'
+                        commits_only = False
                         state = sync_func(stream_schemas, org, repo, state, mdata, start_date,
                             gitLocal, heads, commits_only, selected_stream_ids)
                     else:
