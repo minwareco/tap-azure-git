@@ -1446,10 +1446,6 @@ def do_sync(config, state, catalog):
                         commits_only = True
                         heads = get_pull_request_heads(org, repo)
                         stream_schemas = {stream_id: stream_schema}
-                        # Add refs schema if refs stream is selected
-                        if 'refs' in selected_stream_ids:
-                            refs_stream = get_stream_from_catalog('refs', catalog)
-                            stream_schemas['refs'] = refs_stream['schema']
                         state = sync_func(stream_schemas, org, repo, state, mdata, start_date, gitLocal, heads, commits_only, selected_stream_ids)
                     else:
                         state = sync_func(stream_schema, org, repo, state, mdata, start_date)
