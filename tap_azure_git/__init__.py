@@ -671,7 +671,7 @@ def get_all_heads_for_commits(repo_path):
     return head_set
     '''
 
-def get_all_commit_files(schemas, org, repo_path, state, mdata, start_date, gitLocal, heads, commits_only=False):
+def get_all_commit_files(schemas, org, repo_path, state, mdata, start_date, gitLocal, heads, commits_only=False, selected_stream_ids=None):
     '''
     repo_path should be the full _sdc_repository path of {org}/{project}/{repo}
     '''
@@ -712,37 +712,48 @@ def get_all_commit_files(schemas, org, repo_path, state, mdata, start_date, gitL
     localHeads = gitLocal.getReferences(gitLocalRepoPath)
     headsToCommits = dict()
 
-    with metrics.record_counter('annotated_tags') as counter:
+    # Skip annotated tags processing in commits_only mode
+    if not commits_only:
+        with metrics.record_counter('annotated_tags') as counter:
+            for h in localHeads:
+                ref = localHeads[h]
+                if ref['type'] == 'tag':
+                    annotated_tag = gitLocal.getAnnotatedTag(gitLocalRepoPath, ref['sha'])
+                    headsToCommits[h] = {
+                        'type': 'tag',
+                        'sha': annotated_tag['tagId'],
+                        'commit_sha': annotated_tag['commitId']
+                    }
+
+                    if 'annotated_tags' in schemas:
+                        annotated_tag_record = {
+                            **annotated_tag,
+                            '_sdc_repository': sdcRepository,
+                            'id': '{}/{}'.format(sdcRepository, annotated_tag['tagId'])
+                        }
+                        annotated_tag_record['tagger']['date'] = \
+                            annotated_tag_record['tagger']['date'].isoformat()
+                        with singer.Transformer() as transformer:
+                            rec = transformer.transform(annotated_tag_record, schemas['annotated_tags'],
+                                metadata=metadata.to_map(mdata))
+                        counter.increment()
+                        singer.write_record('annotated_tags', rec, time_extracted=extraction_time)
+
+                else:
+                    headsToCommits[h] = {
+                        'type': 'commit',
+                        'sha': ref['sha'],
+                        'commit_sha': ref['sha']
+                    }
+    else:
+        # In commits_only mode, just add all refs as commits
         for h in localHeads:
             ref = localHeads[h]
-            if ref['type'] == 'tag':
-                annotated_tag = gitLocal.getAnnotatedTag(gitLocalRepoPath, ref['sha'])
-                headsToCommits[h] = {
-                    'type': 'tag',
-                    'sha': annotated_tag['tagId'],
-                    'commit_sha': annotated_tag['commitId']
-                }
-
-                if 'annotated_tags' in schemas:
-                    annotated_tag_record = {
-                        **annotated_tag,
-                        '_sdc_repository': sdcRepository,
-                        'id': '{}/{}'.format(sdcRepository, annotated_tag['tagId'])
-                    }
-                    annotated_tag_record['tagger']['date'] = \
-                        annotated_tag_record['tagger']['date'].isoformat()
-                    with singer.Transformer() as transformer:
-                        rec = transformer.transform(annotated_tag_record, schemas['annotated_tags'],
-                            metadata=metadata.to_map(mdata))
-                    counter.increment()
-                    singer.write_record('annotated_tags', rec, time_extracted=extraction_time)
-
-            else:
-                headsToCommits[h] = {
-                    'type': 'commit',
-                    'sha': ref['sha'],
-                    'commit_sha': ref['sha']
-                }
+            headsToCommits[h] = {
+                'type': 'commit',
+                'sha': ref['sha'] if ref['type'] != 'tag' else ref['sha'],  # Use ref sha directly
+                'commit_sha': ref['sha'] if ref['type'] != 'tag' else ref['sha']
+            }
 
     for k in heads:
         headsToCommits[k] = {
@@ -767,8 +778,8 @@ def get_all_commit_files(schemas, org, repo_path, state, mdata, start_date, gitL
 
             objectType, sha, headSha = itemgetter('type', 'sha', 'commit_sha')(headsToCommits[headRef])
 
-            # Emit the ref record as well if it's not for a pull request
-            if not ('refs/pull' in headRef):
+            # Emit the ref record as well if it's not for a pull request (only if refs stream is selected)
+            if not ('refs/pull' in headRef) and selected_stream_ids and 'refs' in selected_stream_ids:
                 refRecord = {
                     'id': '{}/{}'.format(sdcRepository, headRef),
                     '_sdc_repository': sdcRepository,
@@ -1356,8 +1367,7 @@ SYNC_FUNCTIONS = {
 
 SUB_STREAMS = {
     'pull_requests': ['pull_request_threads'],
-    'commit_files': ['annotated_tags'],
-    'commit_files_meta': ['refs'],
+    'commit_files': ['annotated_tags', 'refs'],
     'builds': ['build_timelines'],
     'pipelines': ['runs']
 }
@@ -1394,13 +1404,14 @@ def do_sync(config, state, catalog):
 
 
     domain = config['pull_domain'] if 'pull_domain' in config else 'dev.azure.com'
+    commits_only = 'commit_files_meta' in selected_stream_ids
     gitLocal = GitLocal({
         'access_token': config['access_token'],
         'workingDir': '/tmp',
     }, 'https://{}@' + domain + '/{}', # repo is format: {org}/{project}/{repo}
         config['hmac_token'] if 'hmac_token' in config else None,
         logger,
-        commitsOnly='commit_files_meta' in selected_stream_ids)
+        commitsOnly=commits_only)
 
     processed_repositories = False
     #pylint: disable=too-many-nested-blocks
@@ -1431,7 +1442,17 @@ def do_sync(config, state, catalog):
 
                 # sync stream
                 if not sub_stream_ids:
-                    state = sync_func(stream_schema, org, repo, state, mdata, start_date)
+                    if stream_id == 'commit_files_meta':
+                        commits_only = True
+                        heads = get_pull_request_heads(org, repo)
+                        stream_schemas = {stream_id: stream_schema}
+                        # Add refs schema if refs stream is selected
+                        if 'refs' in selected_stream_ids:
+                            refs_stream = get_stream_from_catalog('refs', catalog)
+                            stream_schemas['refs'] = refs_stream['schema']
+                        state = sync_func(stream_schemas, org, repo, state, mdata, start_date, gitLocal, heads, commits_only, selected_stream_ids)
+                    else:
+                        state = sync_func(stream_schema, org, repo, state, mdata, start_date)
 
                 # handle streams with sub streams
                 else:
@@ -1453,7 +1474,7 @@ def do_sync(config, state, catalog):
                         # not included.
                         commits_only = stream_id == 'commit_files_meta'
                         state = sync_func(stream_schemas, org, repo, state, mdata, start_date,
-                            gitLocal, heads, commits_only)
+                            gitLocal, heads, commits_only, selected_stream_ids)
                     else:
                         state = sync_func(stream_schemas, org, repo, state, mdata, start_date)
 
