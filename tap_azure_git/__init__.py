@@ -712,48 +712,37 @@ def get_all_commit_files(schemas, org, repo_path, state, mdata, start_date, gitL
     localHeads = gitLocal.getReferences(gitLocalRepoPath)
     headsToCommits = dict()
 
-    # Skip annotated tags processing in commits_only mode
-    if not commits_only:
-        with metrics.record_counter('annotated_tags') as counter:
-            for h in localHeads:
-                ref = localHeads[h]
-                if ref['type'] == 'tag':
-                    annotated_tag = gitLocal.getAnnotatedTag(gitLocalRepoPath, ref['sha'])
-                    headsToCommits[h] = {
-                        'type': 'tag',
-                        'sha': annotated_tag['tagId'],
-                        'commit_sha': annotated_tag['commitId']
-                    }
-
-                    if 'annotated_tags' in schemas:
-                        annotated_tag_record = {
-                            **annotated_tag,
-                            '_sdc_repository': sdcRepository,
-                            'id': '{}/{}'.format(sdcRepository, annotated_tag['tagId'])
-                        }
-                        annotated_tag_record['tagger']['date'] = \
-                            annotated_tag_record['tagger']['date'].isoformat()
-                        with singer.Transformer() as transformer:
-                            rec = transformer.transform(annotated_tag_record, schemas['annotated_tags'],
-                                metadata=metadata.to_map(mdata))
-                        counter.increment()
-                        singer.write_record('annotated_tags', rec, time_extracted=extraction_time)
-
-                else:
-                    headsToCommits[h] = {
-                        'type': 'commit',
-                        'sha': ref['sha'],
-                        'commit_sha': ref['sha']
-                    }
-    else:
-        # In commits_only mode, just add all refs as commits
+    with metrics.record_counter('annotated_tags') as counter:
         for h in localHeads:
             ref = localHeads[h]
-            headsToCommits[h] = {
-                'type': 'commit',
-                'sha': ref['sha'] if ref['type'] != 'tag' else ref['sha'],  # Use ref sha directly
-                'commit_sha': ref['sha'] if ref['type'] != 'tag' else ref['sha']
-            }
+            if ref['type'] == 'tag':
+                annotated_tag = gitLocal.getAnnotatedTag(gitLocalRepoPath, ref['sha'])
+                headsToCommits[h] = {
+                    'type': 'tag',
+                    'sha': annotated_tag['tagId'],
+                    'commit_sha': annotated_tag['commitId']
+                }
+
+                if 'annotated_tags' in schemas:
+                    annotated_tag_record = {
+                        **annotated_tag,
+                        '_sdc_repository': sdcRepository,
+                        'id': '{}/{}'.format(sdcRepository, annotated_tag['tagId'])
+                    }
+                    annotated_tag_record['tagger']['date'] = \
+                        annotated_tag_record['tagger']['date'].isoformat()
+                    with singer.Transformer() as transformer:
+                        rec = transformer.transform(annotated_tag_record, schemas['annotated_tags'],
+                            metadata=metadata.to_map(mdata))
+                    counter.increment()
+                    singer.write_record('annotated_tags', rec, time_extracted=extraction_time)
+
+            else:
+                headsToCommits[h] = {
+                    'type': 'commit',
+                    'sha': ref['sha'],
+                    'commit_sha': ref['sha']
+                }
 
     for k in heads:
         headsToCommits[k] = {
