@@ -1356,7 +1356,7 @@ SYNC_FUNCTIONS = {
 
 SUB_STREAMS = {
     'pull_requests': ['pull_request_threads'],
-    'commit_files': ['annotated_tags', 'refs'],
+    'commit_files': ['refs', 'annotated_tags'],
     'builds': ['build_timelines'],
     'pipelines': ['runs']
 }
