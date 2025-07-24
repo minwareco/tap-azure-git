@@ -862,7 +862,7 @@ def get_all_commit_files(schemas, org, repo_path, state, mdata, start_date, gitL
             # Verify that this commit exists in our mirrored repo
             commitHasLocal = gitLocal.hasLocalCommit(gitLocalRepoPath, headSha)
             if not commitHasLocal:
-                logger.warning('MISSING REF/COMMIT {}/{}/{} - will attempt batch fetch'.format(gitLocalRepoPath, headRef, headSha))
+                logger.info('MISSING REF/COMMIT {}/{}/{} - will attempt batch fetch'.format(gitLocalRepoPath, headRef, headSha))
                 missing_refs.append({'ref': headRef, 'sha': headSha})
                 continue
 
