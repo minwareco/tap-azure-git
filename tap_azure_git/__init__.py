@@ -23,6 +23,7 @@ import singer.bookmarks as bookmarks
 import singer.metrics as metrics
 from dateutil import parser
 from minware_singer_utils import GitLocal, SecureLogger
+from minware_singer_utils.gitlocal import GitLocalException
 from singer import metadata
 
 session = requests.Session()
@@ -593,13 +594,24 @@ def get_all_commits(schema, org, repo_path, state, mdata, start_date):
 
 
 def get_commit_detail_local(commit, gitLocalRepoPath, gitLocal):
+    commit_sha = commit['sha']
+    logger.debug(f"Processing commit diff for SHA: {commit_sha}")
+    
     try:
-        changes = gitLocal.getCommitDiff(gitLocalRepoPath, commit['sha'])
+        changes = gitLocal.getCommitDiff(gitLocalRepoPath, commit_sha)
         commit['files'] = changes
+        logger.debug(f"Successfully processed diff for commit {commit_sha}, found {len(changes)} file changes")
+    except GitLocalException as e:
+        # Handle cases where commits cannot be fetched from Azure DevOps
+        # This commonly happens with deleted PRs or inaccessible objects
+        logger.warning(f"GitLocalException caught for commit {commit_sha} in repo {gitLocalRepoPath}: {str(e)}")
+        logger.info(f"Continuing sync with empty file list for commit {commit_sha}")
+        commit['files'] = []
     except Exception as e:
         # This generally shouldn't happen since we've already fetched and checked out the head
         # commit successfully, so it probably indicates some sort of system error. Just let it
-        # bubbl eup for now.
+        # bubble up for now.
+        logger.error(f"Unexpected error processing commit {commit_sha}: {str(e)}")
         raise e
 
 def get_commit_changes(commit, sdcRepository, gitLocalRepoPath, gitLocal):
