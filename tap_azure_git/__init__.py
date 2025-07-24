@@ -691,7 +691,7 @@ def fetch_missing_refs_batch(gitLocal, repo_path, missing_refs):
     logger.info('Attempting to batch fetch {} missing refs for {}'.format(len(missing_shas), repo_path))
     
     try:
-        # Call the GitLocal batch fetch method from minware-singer-utils PR #12
+        # Call the GitLocal batch fetch method from minware-singer-utils
         gitLocal.fetchMultipleCommits(repo_path, missing_shas, 'azure-git')
         logger.info('Successfully batch fetched {} refs for {}'.format(len(missing_shas), repo_path))
         return missing_refs  # Return all refs for processing
