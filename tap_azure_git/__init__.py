@@ -23,6 +23,7 @@ import singer.bookmarks as bookmarks
 import singer.metrics as metrics
 from dateutil import parser
 from minware_singer_utils import GitLocal, SecureLogger
+from minware_singer_utils.gitlocal import GitLocalException
 from singer import metadata
 
 session = requests.Session()
@@ -596,10 +597,15 @@ def get_commit_detail_local(commit, gitLocalRepoPath, gitLocal):
     try:
         changes = gitLocal.getCommitDiff(gitLocalRepoPath, commit['sha'])
         commit['files'] = changes
+    except GitLocalException as e:
+        # Handle cases where commits cannot be fetched from Azure DevOps
+        # This commonly happens with deleted PRs or inaccessible objects
+        logger.info(f"Failed to get diff for commit {commit['sha']} in repo {gitLocalRepoPath}, continuing with empty file list: {str(e)}")
+        commit['files'] = []
     except Exception as e:
         # This generally shouldn't happen since we've already fetched and checked out the head
         # commit successfully, so it probably indicates some sort of system error. Just let it
-        # bubbl eup for now.
+        # bubble up for now.
         raise e
 
 def get_commit_changes(commit, sdcRepository, gitLocalRepoPath, gitLocal):
