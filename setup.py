@@ -4,7 +4,7 @@ import os
 
 from setuptools import setup, find_packages
 
-UTILS_VERSION = "21a1d4b552e2a821f9414bd9a35377e5892a260b"
+UTILS_VERSION = "e99e96ad3012b67e542590464a307ab05bff7f7a"
 
 setup(name='tap-azure-git',
       version='0.1',
