@@ -22,7 +22,7 @@ import singer
 import singer.bookmarks as bookmarks
 import singer.metrics as metrics
 from dateutil import parser
-from minware_singer_utils import GitLocal, SecureLogger
+from minware_singer_utils import GitLocal, GitLocalRepoNotFoundException, SecureLogger
 from minware_singer_utils.gitlocal import GitLocalException
 from singer import metadata
 
@@ -1466,7 +1466,8 @@ def do_sync(config, state, catalog):
     #pylint: disable=too-many-nested-blocks
     for repo in repositories:
         logger.info("Starting sync of repository: %s", repo)
-        for stream in catalog['streams']:
+        try:
+            for stream in catalog['streams']:
             stream_id = stream['tap_stream_id']
             stream_schema = stream['schema']
             mdata = stream['metadata']
@@ -1522,6 +1523,10 @@ def do_sync(config, state, catalog):
                             gitLocal, heads, commits_only, selected_stream_ids)
                     else:
                         state = sync_func(stream_schemas, org, repo, state, mdata, start_date)
+
+        except GitLocalRepoNotFoundException as e:
+            logger.warning(f'Repository {repo} not found, skipping: {e}')
+            continue
 
     # The state can get big, don't write it until the end
     singer.write_state(state)
