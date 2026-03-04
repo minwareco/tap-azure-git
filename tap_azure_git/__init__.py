@@ -22,7 +22,7 @@ import singer
 import singer.bookmarks as bookmarks
 import singer.metrics as metrics
 from dateutil import parser
-from minware_singer_utils import GitLocal, SecureLogger
+from minware_singer_utils import GitLocal, GitLocalRepoNotFoundException, SecureLogger
 from minware_singer_utils.gitlocal import GitLocalException
 from singer import metadata
 
@@ -1466,62 +1466,67 @@ def do_sync(config, state, catalog):
     #pylint: disable=too-many-nested-blocks
     for repo in repositories:
         logger.info("Starting sync of repository: %s", repo)
-        for stream in catalog['streams']:
-            stream_id = stream['tap_stream_id']
-            stream_schema = stream['schema']
-            mdata = stream['metadata']
+        try:
+            for stream in catalog['streams']:
+                stream_id = stream['tap_stream_id']
+                stream_schema = stream['schema']
+                mdata = stream['metadata']
 
-            if stream_id == 'repositories':
-                # Only load this once, and only if process_globals is set to true
-                if processed_repositories:
+                if stream_id == 'repositories':
+                    # Only load this once, and only if process_globals is set to true
+                    if processed_repositories:
+                        continue
+                    processed_repositories = True
+
+                # if it is a "sub_stream", it will be sync'd by its parent
+                if not SYNC_FUNCTIONS.get(stream_id):
                     continue
-                processed_repositories = True
 
-            # if it is a "sub_stream", it will be sync'd by its parent
-            if not SYNC_FUNCTIONS.get(stream_id):
-                continue
+                # if stream is selected, write schema and sync
+                if stream_id in selected_stream_ids:
+                    singer.write_schema(stream_id, stream_schema, stream['key_properties'])
 
-            # if stream is selected, write schema and sync
-            if stream_id in selected_stream_ids:
-                singer.write_schema(stream_id, stream_schema, stream['key_properties'])
+                    # get sync function and any sub streams
+                    sync_func = SYNC_FUNCTIONS[stream_id]
+                    sub_stream_ids = SUB_STREAMS.get(stream_id, None)
 
-                # get sync function and any sub streams
-                sync_func = SYNC_FUNCTIONS[stream_id]
-                sub_stream_ids = SUB_STREAMS.get(stream_id, None)
+                    # sync stream
+                    if not sub_stream_ids:
+                        if stream_id == 'commit_files_meta':
+                            commits_only = True
+                            heads = get_pull_request_heads(org, repo)
+                            stream_schemas = {stream_id: stream_schema}
+                            state = sync_func(stream_schemas, org, repo, state, mdata, start_date, gitLocal, heads, commits_only, selected_stream_ids)
+                        else:
+                            state = sync_func(stream_schema, org, repo, state, mdata, start_date)
 
-                # sync stream
-                if not sub_stream_ids:
-                    if stream_id == 'commit_files_meta':
-                        commits_only = True
-                        heads = get_pull_request_heads(org, repo)
+                    # handle streams with sub streams
+                    else:
                         stream_schemas = {stream_id: stream_schema}
-                        state = sync_func(stream_schemas, org, repo, state, mdata, start_date, gitLocal, heads, commits_only, selected_stream_ids)
-                    else:
-                        state = sync_func(stream_schema, org, repo, state, mdata, start_date)
 
-                # handle streams with sub streams
-                else:
-                    stream_schemas = {stream_id: stream_schema}
+                        # get and write selected sub stream schemas
+                        for sub_stream_id in sub_stream_ids:
+                            if sub_stream_id in selected_stream_ids:
+                                sub_stream = get_stream_from_catalog(sub_stream_id, catalog)
+                                stream_schemas[sub_stream_id] = sub_stream['schema']
+                                singer.write_schema(sub_stream_id, sub_stream['schema'],
+                                                    sub_stream['key_properties'])
 
-                    # get and write selected sub stream schemas
-                    for sub_stream_id in sub_stream_ids:
-                        if sub_stream_id in selected_stream_ids:
-                            sub_stream = get_stream_from_catalog(sub_stream_id, catalog)
-                            stream_schemas[sub_stream_id] = sub_stream['schema']
-                            singer.write_schema(sub_stream_id, sub_stream['schema'],
-                                                sub_stream['key_properties'])
+                        # sync stream and its sub streams
+                        if stream_id == 'commit_files':
+                            heads = get_pull_request_heads(org, repo)
+                            # We don't need to also get open branch heads here becuase those are
+                            # included in the git clone --mirror, though PR heads for merged PRs are
+                            # not included.
+                            commits_only = False
+                            state = sync_func(stream_schemas, org, repo, state, mdata, start_date,
+                                gitLocal, heads, commits_only, selected_stream_ids)
+                        else:
+                            state = sync_func(stream_schemas, org, repo, state, mdata, start_date)
 
-                    # sync stream and its sub streams
-                    if stream_id == 'commit_files':
-                        heads = get_pull_request_heads(org, repo)
-                        # We don't need to also get open branch heads here becuase those are
-                        # included in the git clone --mirror, though PR heads for merged PRs are
-                        # not included.
-                        commits_only = False
-                        state = sync_func(stream_schemas, org, repo, state, mdata, start_date,
-                            gitLocal, heads, commits_only, selected_stream_ids)
-                    else:
-                        state = sync_func(stream_schemas, org, repo, state, mdata, start_date)
+        except GitLocalRepoNotFoundException as e:
+            logger.warning(f'Repository {repo} not found, skipping: {e}')
+            continue
 
     # The state can get big, don't write it until the end
     singer.write_state(state)
