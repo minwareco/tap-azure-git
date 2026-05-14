@@ -1524,7 +1524,7 @@ def do_sync(config, state, catalog):
                         else:
                             state = sync_func(stream_schemas, org, repo, state, mdata, start_date)
 
-        except GitLocalRepoNotFoundException as e:
+        except (GitLocalRepoNotFoundException, NotFoundException) as e:
             logger.warning(f'Repository {repo} not found, skipping: {e}')
             continue
 
